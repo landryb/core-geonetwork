@@ -28,11 +28,12 @@ package org.fao.geonet.services.publisher;
  */
 public class GeoServerNode {
 	public GeoServerNode(String id, String name, String url,
-			String namespacePrefix, String namespaceUrl, String username,
-			String userPassword) {
+			String namespacePrefix, String namespaceUrl, String publicUrl,
+			String username, String userPassword) {
 		setId(id);
 		setName(name);
 		setUrl(url);
+		setPublicUrl(publicUrl);
 		setNamespacePrefix(namespacePrefix);
 		setNamespaceUrl(namespaceUrl);
 		setUsername(username);
@@ -42,6 +43,7 @@ public class GeoServerNode {
 	private String id;
 
 	private String name;
+	private GeoServerRest rest;
 
 	public String getName() {
 		return name;
@@ -59,6 +61,14 @@ public class GeoServerNode {
 		this.url = url;
 	}
 
+	public GeoServerRest getRest() {
+		return rest;
+	}
+
+	public void setRest(GeoServerRest rest) {
+		this.rest = rest;
+	}
+
 	public String getNamespacePrefix() {
 		return namespacePrefix;
 	}
@@ -73,6 +83,14 @@ public class GeoServerNode {
 
 	public void setNamespaceUrl(String namespaceUrl) {
 		this.namespaceUrl = namespaceUrl;
+	}
+
+	public String getPublicUrl() {
+		return publicUrl;
+	}
+
+	public void setPublicUrl(String publicUrl) {
+		this.publicUrl = publicUrl;
 	}
 
 	public String getUsername() {
@@ -102,6 +120,7 @@ public class GeoServerNode {
 	private String url;
 	private String namespacePrefix;
 	private String namespaceUrl;
+	private String publicUrl;
 	private String username;
 	private String userpassword;
 }

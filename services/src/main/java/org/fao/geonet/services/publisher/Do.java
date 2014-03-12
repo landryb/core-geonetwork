@@ -45,6 +45,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Service to manage GeoServer dataset publication.
@@ -93,6 +94,16 @@ public class Do implements Service {
 	 * List of current known nodes
 	 */
 	private HashMap<String, GeoServerNode> geoserverNodes = new HashMap<String, GeoServerNode>();
+
+	/**
+	 * List of current known restEndpoint
+	 */
+	private HashMap<String, GeoServerRest> geoserverRestList = new HashMap<String, GeoServerRest>();
+
+	/**
+	 * List of current known workspaces
+	 */
+	private HashMap<String, String> geoserverWorkspaceList = new HashMap<String, String>();
 
 	/**
 	 * Error code received when publishing
@@ -146,40 +157,31 @@ public class Do implements Service {
         if (!geoserverConfigLoaded) {
             loadConfiguration(geoserverConfigFile, context);
         }
-    	GeonetContext gc = (GeonetContext) context.getHandlerContext(Geonet.CONTEXT_NAME);
-    	SettingManager settingsManager = gc.getBean(SettingManager.class);
-    	String baseUrl = settingsManager.getValue(Geonet.Settings.SERVER_PROTOCOL)
-    			+ "://" + settingsManager.getValue(Geonet.Settings.SERVER_HOST)
-    			+ ":" + settingsManager.getValue("system/server/port")
-    			+ context.getBaseUrl()
-    			+ "/srv/" + context.getLanguage() + "/";
-    	
     	
     	ACTION action = ACTION.valueOf(Util.getParam(params, "action"));
     	if (action.equals(ACTION.LIST)) {
+		updateWorkspaceList();
     		return list();
     	} else if (action.equals(ACTION.CREATE) || action.equals(ACTION.UPDATE)
     			|| action.equals(ACTION.DELETE) || action.equals(ACTION.GET)) {
     
     		// Check parameters
-    		String nodeId = Util.getParam(params, "nodeId");
+		String nodeId = Util.getParam(params, "nodeId");
     		String metadataId = Util.getParam(params, "metadataId");
     		String metadataUuid = Util.getParam(params, "metadataUuid", "");
     		// purge \\n from metadataTitle - geoserver prefers layer titles on a single line
     		String metadataTitle = Util.getParam(params, "metadataTitle", "").replace("\\n","");
     		// unescape \\n from metadataAbstract so they're properly sent to geoserver
     		String metadataAbstract = Util.getParam(params, "metadataAbstract", "").replace("\\n","\n");
-    		GeoServerNode g = geoserverNodes.get(nodeId);
-    		if (g == null) {
+    		GeoServerRest restEndpoint = geoserverRestList.get(nodeId);
+    		String ws = geoserverWorkspaceList.get(nodeId);
+    		if (restEndpoint == null) {
                 throw new IllegalArgumentException(
                         "Invalid node id " + nodeId + ". Can't find node id in current registered nodes. "
                         + "Use action=LIST parameter to retrieve the list of valid nodes.");
             }
 
 
-            final GeonetHttpRequestFactory requestFactory = context.getBean(GeonetHttpRequestFactory.class);
-            GeoServerRest gs = new GeoServerRest(requestFactory, g.getUrl(), g.getUsername(), g.getUserpassword(), g.getNamespacePrefix(), baseUrl);
-    
     		String file = Util.getParam(params, "file");
     		String access = Util.getParam(params, "access");
     
@@ -201,21 +203,47 @@ public class Do implements Service {
     			String db = dbInfo[0]; 
     			String table = dbInfo[1]; 
     			
-    			return publishDbTable(action, gs, "postgis", host, port, user, password, db, table, "postgis", g.getNamespaceUrl(), metadataUuid, metadataTitle, metadataAbstract);
+    			return publishDbTable(action, ws, restEndpoint, "postgis", host, port, user, password, db, table, "postgis", metadataUuid, metadataTitle, metadataAbstract);
     		} else {
     		    if (file.startsWith("file://") || file.startsWith("http://")) {
-    		        return addExternalFile(action, gs, file, metadataUuid, metadataTitle, metadataAbstract);
+    		        return addExternalFile(action, ws, restEndpoint, file, metadataUuid, metadataTitle, metadataAbstract);
     		    } else {
     		        // Get ZIP file from data directory
                     File dir = new File(Lib.resource
                             .getDir(context, access, metadataId));
                     File f = new File(dir, file);
-                    return addZipFile(action, gs, f, file, metadataUuid, metadataTitle, metadataAbstract);
+                    return addZipFile(action, ws, restEndpoint, f, file, metadataUuid, metadataTitle, metadataAbstract);
     		    }
     		}
     	}
     	return null;
     }
+
+	private void updateWorkspaceList() throws IOException, JDOMException {
+		/* modify geoserverConfig tree by looping on geoserverNodes and updating the list of available workspaces */
+		Element newConfig = new Element("nodes");
+		for (Map.Entry entry : geoserverNodes.entrySet()) {
+			GeoServerNode g = (GeoServerNode) entry.getValue();
+			Log.debug(MODULE, "Updating list of available workspaces for node " + entry.getKey());
+			Collection<String> wsnames = g.getRest().listAvailableWorkspaces();
+			for (String ws : wsnames) {
+				Element node = new Element("node");
+				node.addContent(new Element("id").setText(g.getId() + "-" + ws));
+				node.addContent(new Element("name").setText(g.getName() + "-" + ws));
+				node.addContent(new Element("namespacePrefix").setText(ws));
+				node.addContent(new Element("namespaceUrl").setText(g.getNamespaceUrl() + "/" + ws));
+				node.addContent(new Element("adminUrl").setText(g.getUrl()));
+				node.addContent(new Element("wmsUrl").setText(g.getPublicUrl() + ws + "/wms"));
+				node.addContent(new Element("wfsUrl").setText(g.getPublicUrl() + ws + "/wfs"));
+				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
+				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
+				newConfig.addContent(node);
+				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());
+				geoserverWorkspaceList.put(g.getId() + "-" + ws, ws);
+			}
+		}
+		geoserverConfig = newConfig;
+	}
 
     private void loadConfiguration(String geoserverConfigFile, ServiceContext context) throws IOException, JDOMException {
         geoserverConfig = Xml.loadFile(geoserverConfigFile);
@@ -223,6 +251,14 @@ public class Do implements Service {
         if(context.getServlet() != null) {
             servletContext = context.getServlet().getServletContext();
         }
+    	GeonetContext gc = (GeonetContext) context.getHandlerContext(Geonet.CONTEXT_NAME);
+    	SettingManager settingsManager = gc.getBean(SettingManager.class);
+    	String baseUrl = settingsManager.getValue(Geonet.Settings.SERVER_PROTOCOL)
+    			+ "://" + settingsManager.getValue(Geonet.Settings.SERVER_HOST)
+    			+ ":" + settingsManager.getValue("system/server/port")
+    			+ context.getBaseUrl()
+    			+ "/srv/" + context.getLanguage() + "/";
+    	
 		ConfigurationOverrides.DEFAULT.updateWithOverrides(geoserverConfigFile, 
 		        servletContext, context.getAppPath(), geoserverConfig);
 		
@@ -246,6 +282,7 @@ public class Do implements Service {
 			String url = node.getChildText("adminUrl");
 			String namespacePrefix = node.getChildText("namespacePrefix");
 			String namespaceUrl = node.getChildText("namespaceUrl");
+			String publicUrl = node.getChildText("wmsUrl").replace("/wms","/");
             String user = node.getChildText("user");
 			String password = node.getChildText("password");
 
@@ -254,11 +291,16 @@ public class Do implements Service {
 			node.removeChild("password");
 
 			GeoServerNode g = new GeoServerNode(id, name, url, namespacePrefix,
-					namespaceUrl, user, password);
+					namespaceUrl, publicUrl, user, password);
 
 			if (g != null)
 				geoserverNodes.put(id, g);
+
+			final GeonetHttpRequestFactory requestFactory = context.getBean(GeonetHttpRequestFactory.class);
+			GeoServerRest gs = new GeoServerRest(requestFactory, g.getUrl(), g.getUsername(), g.getUserpassword(), g.getNamespacePrefix(), baseUrl);
+			g.setRest(gs);
 		}
+    
         if(Log.isDebugEnabled(MODULE))
             Log.debug(MODULE, "End node registration.");
         
@@ -292,16 +334,16 @@ public class Do implements Service {
 	 * @param metadataTitle TODO
 	 * @return
 	 */
-	private Element publishDbTable(ACTION action, GeoServerRest g, String string,
+	private Element publishDbTable(ACTION action, String ws, GeoServerRest g, String string,
 			String host, String port, String user, String password, String db,
-			String table, String dbType, String ns, String metadataUuid, String metadataTitle, String metadataAbstract) {
+			String table, String dbType, String metadataUuid, String metadataTitle, String metadataAbstract) {
 		try {
 			if (action.equals(ACTION.CREATE) || action.equals(ACTION.UPDATE)) {
 				StringBuilder report = new StringBuilder();
 				// TODO : check datastore already exist
-				if (!g.createDatabaseDatastore(db, host, port, db, user, password, dbType, ns))
+				if (!g.createDatabaseDatastore(ws, db, host, port, db, user, password, dbType))
 					report.append("Datastore: ").append(g.getStatus());
-				if (!g.createFeatureType(db, table, true, metadataUuid, metadataTitle, metadataAbstract))
+				if (!g.createFeatureType(ws, db, table, true, metadataUuid, metadataTitle, metadataAbstract))
 					report.append("Feature type: ").append(g.getStatus());
 //				Publication of Datastore and feature type may failed if already exist
 //				if (report.length() > 0) {
@@ -313,9 +355,9 @@ public class Do implements Service {
 				if (!g.deleteLayer(table))
 					report.append("Layer: ").append(g.getStatus());
 //				Only remove the layer in such situation
-//				if (!g.deleteFeatureType(db, table))
+//				if (!g.deleteFeatureType(ws, db, table))
 //					report.append("Feature type: ").append(g.getStatus());
-//				if (!g.deleteDatastore(db))
+//				if (!g.deleteDatastore(ws, db))
 //					report.append("Datastore: ").append(g.getStatus());
 
 				if (report.length() > 0) {
@@ -348,7 +390,7 @@ public class Do implements Service {
 	 * @return
 	 * @throws java.io.IOException
 	 */
-	private Element addZipFile(ACTION action, GeoServerRest gs, File f, String file, String metadataUuid, String metadataTitle, String metadataAbstract)
+	private Element addZipFile(ACTION action, String ws, GeoServerRest gs, File f, String file, String metadataUuid, String metadataTitle, String metadataAbstract)
 			throws IOException {
 		if (f == null) {
 			return report(EXCEPTION, null,
@@ -364,7 +406,7 @@ public class Do implements Service {
 		try {
 			vectorLayers = gf.getVectorLayers(true);
 			if (vectorLayers.size() > 0) {
-				if (publishVector(f, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
+				if (publishVector(f, ws, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
 					return report(SUCCESS, VECTOR, getReport());
 				} else {
 					return report(EXCEPTION, VECTOR, getErrorCode());
@@ -377,7 +419,7 @@ public class Do implements Service {
 		try {
 			rasterLayers = gf.getRasterLayers();
 			if (rasterLayers.size() > 0) {
-				if (publishRaster(f, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
+				if (publishRaster(f, ws, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
 					return report(SUCCESS, RASTER, getReport());
 				} else {
 					return report(EXCEPTION, RASTER, getErrorCode());
@@ -395,10 +437,10 @@ public class Do implements Service {
 		return null;
 	}
 
-	private Element addExternalFile(ACTION action, GeoServerRest gs, String file, String metadataUuid, String metadataTitle, String metadataAbstract)
+	private Element addExternalFile(ACTION action, String ws, GeoServerRest gs, String file, String metadataUuid, String metadataTitle, String metadataAbstract)
             throws IOException {
 	    // TODO vector or raster file ? Currently GeoServer does not support RASTER for external
-	    if (publishExternal(file, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
+	    if (publishExternal(file, ws, gs, action, metadataUuid, metadataTitle, metadataAbstract)) {
             return report(SUCCESS, VECTOR, getReport());
         } else {
             return report(EXCEPTION, VECTOR, getErrorCode());
@@ -421,24 +463,24 @@ public class Do implements Service {
 		return report;
 	}
 
-	private boolean publishVector(File f, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
+	private boolean publishVector(File f, String ws, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
 
 		String ds = f.getName();
 		String dsName = ds.substring(0, ds.lastIndexOf("."));
 		try {
 			if (action.equals(ACTION.CREATE)) {
-				g.createDatastore(dsName, f, true);
-				g.createFeatureType(dsName, dsName, false, metadataUuid, metadataTitle, metadataAbstract);
+				g.createDatastore(ws, dsName, f, true);
+				g.createFeatureType(ws, dsName, dsName, false, metadataUuid, metadataTitle, metadataAbstract);
 			} else if (action.equals(ACTION.UPDATE)) {
-				g.createDatastore(dsName, f, false);
-				g.createFeatureType(dsName, dsName, false, metadataUuid, metadataTitle, metadataAbstract);
+				g.createDatastore(ws, dsName, f, false);
+				g.createFeatureType(ws, dsName, dsName, false, metadataUuid, metadataTitle, metadataAbstract);
 			} else if (action.equals(ACTION.DELETE)) {
 				String report = "";
 				if (!g.deleteLayer(dsName))
 					report += "Layer: " + g.getStatus();
-				if (!g.deleteFeatureType(dsName, dsName))
+				if (!g.deleteFeatureType(ws, dsName, dsName))
 					report += "Feature type: " + g.getStatus();
-				if (!g.deleteDatastore(dsName))
+				if (!g.deleteDatastore(ws, dsName))
 					report += "Datastore: " + g.getStatus();
 
 				if (!report.equals("")) {
@@ -461,7 +503,7 @@ public class Do implements Service {
 		return false;
 	}
 
-	private boolean publishExternal(String file, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
+	private boolean publishExternal(String file, String ws, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
 
         String dsName = file.substring(file.lastIndexOf("/") + 1, file.lastIndexOf("."));
         boolean isRaster = GeoFile.fileIsRASTER(file);
@@ -469,15 +511,15 @@ public class Do implements Service {
         try {
             if (action.equals(ACTION.CREATE)) {
                 if (isRaster) {
-                	g.createCoverage(dsName, file, metadataUuid, metadataTitle, metadataAbstract);
+                	g.createCoverage(ws, dsName, file, metadataUuid, metadataTitle, metadataAbstract);
                 } else {
                     g.createDatastore(dsName, file, true);
                 }
             } else if (action.equals(ACTION.UPDATE)) {
                 if (isRaster) {
-                	g.createCoverage(dsName, file, metadataUuid, metadataTitle, metadataAbstract);
+                	g.createCoverage(ws, dsName, file, metadataUuid, metadataTitle, metadataAbstract);
                 } else {
-                    g.createDatastore(dsName, file, false);
+                    g.createDatastore(ws, dsName, file, false);
                 }
             } else if (action.equals(ACTION.DELETE)) {
                 String report = "";
@@ -486,9 +528,9 @@ public class Do implements Service {
                 if (isRaster) {
                     
                 } else {
-                    if (!g.deleteFeatureType(dsName, dsName))
+                    if (!g.deleteFeatureType(ws, dsName, dsName))
                         report += "Feature type: " + g.getStatus();
-                    if (!g.deleteDatastore(dsName))
+                    if (!g.deleteDatastore(ws, dsName))
                         report += "Datastore: " + g.getStatus();
                 }
                 if (!report.equals("")) {
@@ -510,21 +552,21 @@ public class Do implements Service {
         }
         return false;
     }
-	private boolean publishRaster(File f, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
+	private boolean publishRaster(File f, String ws, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
 		String cs = f.getName();
 		String csName = cs.substring(0, cs.lastIndexOf("."));
 		try {
 			if (action.equals(ACTION.CREATE)) {
-				g.createCoverage(csName, f, metadataUuid, metadataTitle, metadataAbstract);
+				g.createCoverage(ws, csName, f, metadataUuid, metadataTitle, metadataAbstract);
 			} else if (action.equals(ACTION.UPDATE)) {
-				g.createCoverage(csName, f, metadataUuid, metadataTitle, metadataAbstract);
+				g.createCoverage(ws, csName, f, metadataUuid, metadataTitle, metadataAbstract);
 			} else if (action.equals(ACTION.DELETE)) {
 				String report = "";
 				if (!g.deleteLayer(csName))
 					report += "Layer: " + g.getStatus();
-				if (!g.deleteCoverage(csName, csName))
+				if (!g.deleteCoverage(ws, csName, csName))
 					report += "Coverage: " + g.getStatus();
-				if (!g.deleteCoverageStore(csName))
+				if (!g.deleteCoverageStore(ws, csName))
 					report += "Coveragestore: " + g.getStatus();
 
 				if (!report.equals("")) {

@@ -39,10 +39,14 @@ import org.fao.geonet.Constants;
 import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.csw.common.util.Xml;
 import org.jdom.Element;
+import org.jdom.JDOMException;
 import org.springframework.http.client.ClientHttpResponse;
 
 import javax.annotation.CheckReturnValue;
 
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -123,6 +127,31 @@ public class GeoServerRest {
 		return defaultWorkspace;
 	}
 
+	/**
+	 * @return List the available workspaces
+	 */
+	public Collection<String> listAvailableWorkspaces() throws IOException,JDOMException {
+		LinkedList<String> wsnames = new LinkedList<String>();
+		int status = sendREST(GeoServerRest.METHOD_GET, "/workspaces.xml"
+				, null, null, null, true);
+		checkResponseCode(status);
+		if (status != 200)
+			return null;
+		Element doc = Xml.loadString(getResponse(), false);
+		List workspaces = doc.getChildren("workspace");
+		if(Log.isDebugEnabled(LOGGER_NAME)) {
+			Log.debug(LOGGER_NAME, "found " + workspaces.size() + " workspaces in " + restUrl);
+		}
+		for (int i = 0; i < workspaces.size(); i++) {
+			Element ws = (Element) workspaces.get(i);
+			String workspace = ws.getChildText("name");
+			if(Log.isDebugEnabled(LOGGER_NAME)) {
+				Log.debug(LOGGER_NAME, "workspace:" + workspace);
+			}
+			wsnames.add(workspace);
+		}
+		return wsnames;
+	}
 	/**
 	 * Retrieve layer (feature type or coverage) information. Use @see
 	 * #getResponse() to get the message returned.
@@ -540,23 +569,23 @@ public class GeoServerRest {
     }
 
     public boolean createDatabaseDatastore(String ds, String host, String port,
-			String db, String user, String pwd, String dbType, String ns)
+			String db, String user, String pwd, String dbType)
 			throws IOException {
 		return createDatabaseDatastore(getDefaultWorkspace(), ds, host, port,
-				db, user, pwd, dbType, ns);
+				db, user, pwd, dbType);
 
 	}
 
 	public boolean createDatabaseDatastore(String ws, String ds, String host,
-			String port, String db, String user, String pwd, String dbType,
-			String ns) throws IOException {
+			String port, String db, String user, String pwd, String dbType)
+			throws IOException {
 
 		String xml = "<dataStore><name>" + ds
 				+ "</name><enabled>true</enabled><connectionParameters><host>"
 				+ host + "</host><port>" + port + "</port><database>" + db
 				+ "</database><user>" + user + "</user><passwd>" + pwd
-				+ "</passwd><dbtype>" + dbType + "</dbtype><namespace>" + ns
-				+ "</namespace></connectionParameters></dataStore>";
+				+ "</passwd><dbtype>" + dbType + "</dbtype>"
+				+ "</connectionParameters></dataStore>";
 
 		status = sendREST(GeoServerRest.METHOD_POST, "/workspaces/" + ws
 				+ "/datastores", xml, null, "text/xml", true);
