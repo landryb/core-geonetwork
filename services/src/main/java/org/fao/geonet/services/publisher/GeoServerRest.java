@@ -657,7 +657,12 @@ public class GeoServerRest {
         if(Log.isDebugEnabled(LOGGER_NAME)) {
             Log.debug(LOGGER_NAME, "url:" + url);
             Log.debug(LOGGER_NAME, "method:" + method);
-            Log.debug(LOGGER_NAME, "postData:" + postData);
+            if (postData != null) {
+                Log.debug(LOGGER_NAME, "postData:" + postData);
+            }
+            if (method.equals(METHOD_PUT) && file != null) {
+                Log.debug(LOGGER_NAME, "putFile:" + file.getPath());
+            }
         }
 
 		HttpRequestBase m;
@@ -703,6 +708,9 @@ public class GeoServerRest {
             }
             if (saveResponse) {
                 this.response = IOUtils.toString(httpResponse.getBody());
+		if(Log.isDebugEnabled(LOGGER_NAME)) {
+                    Log.debug(LOGGER_NAME, "response:" + this.response);
+		}
             }
         }finally {
             httpResponse.close();
