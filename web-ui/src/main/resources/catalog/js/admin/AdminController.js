@@ -31,6 +31,12 @@
         when('/metadata/:tab', {
           templateUrl: tplFolder + 'page-layout.html',
           controller: 'GnAdminMetadataController'}).
+        when('/metadata/schematron/:schemaName', {
+          templateUrl: tplFolder + 'page-layout.html',
+          controller: 'GnAdminMetadataController'}).
+        when('/metadata/schematron/:schemaName/:schematronId', {
+          templateUrl: tplFolder + 'page-layout.html',
+          controller: 'GnAdminMetadataController'}).
         when('/metadata/:tab/:metadataAction/:schema', {
           templateUrl: tplFolder + 'page-layout.html',
           controller: 'GnAdminMetadataController'}).
