@@ -45,6 +45,7 @@ public class GeoServerNode {
         setId(String.valueOf(m.getId()));
         setName(m.getName());
         setUrl(m.getConfigurl());
+        setPublicUrl(m.getWmsurl().replace("/wms","/"));
         setNamespacePrefix(m.getNamespacePrefix());
         setNamespaceUrl(m.getNamespace());
         setUsername(m.getUsername());

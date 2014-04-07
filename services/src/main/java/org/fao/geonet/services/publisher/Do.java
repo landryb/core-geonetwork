@@ -143,14 +143,7 @@ public class Do implements Service {
      */
     public Element exec(Element params, ServiceContext context)
     		throws Exception {
-    	GeonetContext gc = (GeonetContext) context.getHandlerContext(Geonet.CONTEXT_NAME);
         MapServerRepository repo = context.getBean(MapServerRepository.class);
-        SettingManager settingsManager = gc.getBean(SettingManager.class);
-    	String baseUrl = settingsManager.getValue(Geonet.Settings.SERVER_PROTOCOL)
-    			+ "://" + settingsManager.getValue(Geonet.Settings.SERVER_HOST)
-    			+ ":" + settingsManager.getValue("system/server/port")
-    			+ context.getBaseUrl();
-    	
     	
     	ACTION action = ACTION.valueOf(Util.getParam(params, "action"));
     	if (action.equals(ACTION.LIST)) {
@@ -212,13 +205,9 @@ public class Do implements Service {
     		String metadataTitle = Util.getParam(params, "metadataTitle", "").replace("\\n","");
     		// unescape \\n from metadataAbstract so they're properly sent to geoserver
     		String metadataAbstract = Util.getParam(params, "metadataAbstract", "").replace("\\n","\n");
-            MapServer m = repo.findOneById(nodeId);
-            GeoServerNode g = new GeoServerNode(m);
 
-            final GeonetHttpRequestFactory requestFactory = context.getBean(GeonetHttpRequestFactory.class);
-            GeoServerRest gs = new GeoServerRest(requestFactory, g.getUrl(),
-                    g.getUsername(), g.getUserpassword(),
-                    g.getNamespacePrefix(), baseUrl);
+		GeoServerRest restEndpoint = geoserverRestList.get(nodeId);
+		String ws = geoserverWorkspaceList.get(nodeId);
     
     		String file = Util.getParam(params, "file");
     		String access = Util.getParam(params, "access");
@@ -257,57 +246,49 @@ public class Do implements Service {
     	return null;
     }
 
-	private void updateWorkspaceList() throws IOException, JDOMException {
-		/* modify geoserverConfig tree by looping on geoserverNodes and updating the list of available workspaces */
-		Element newConfig = new Element("nodes");
-		for (Map.Entry entry : geoserverNodes.entrySet()) {
-			GeoServerNode g = (GeoServerNode) entry.getValue();
-			Log.debug(MODULE, "Updating list of available workspaces for node " + entry.getKey());
-			Collection<String> wsnames = g.getRest().listAvailableWorkspaces();
-			for (String ws : wsnames) {
-				Element node = new Element("node");
-				node.addContent(new Element("id").setText(g.getId() + "-" + ws));
-				node.addContent(new Element("name").setText(g.getName() + "-" + ws));
-				node.addContent(new Element("namespacePrefix").setText(ws));
-				node.addContent(new Element("namespaceUrl").setText(g.getNamespaceUrl() + "/" + ws));
-				node.addContent(new Element("adminUrl").setText(g.getUrl()));
-				node.addContent(new Element("wmsUrl").setText(g.getPublicUrl() + ws + "/wms"));
-				node.addContent(new Element("wfsUrl").setText(g.getPublicUrl() + ws + "/wfs"));
-				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
-				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
-				newConfig.addContent(node);
-				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());
-				geoserverWorkspaceList.put(g.getId() + "-" + ws, ws);
-			}
-		}
-		geoserverConfig = newConfig;
-	}
-
     private Element loadDbConfiguration(ServiceContext context) {
+        final GeonetHttpRequestFactory requestFactory = context.getBean(GeonetHttpRequestFactory.class);
+    	GeonetContext gc = (GeonetContext) context.getHandlerContext(Geonet.CONTEXT_NAME);
+        SettingManager settingsManager = gc.getBean(SettingManager.class);
+    	String baseUrl = settingsManager.getValue(Geonet.Settings.SERVER_PROTOCOL)
+    			+ "://" + settingsManager.getValue(Geonet.Settings.SERVER_HOST)
+    			+ ":" + settingsManager.getValue("system/server/port")
+    			+ context.getBaseUrl();
+
         final java.util.List<MapServer> mapservers =
                 context.getBean(MapServerRepository.class)
                         .findAll();
         geoserverNodes.clear();
         Element geoserverConfig = new Element("nodes");
         for (MapServer m : mapservers) {
-            GeoServerNode g = new GeoServerNode(m);
-
-            if (g != null) {
-                geoserverNodes.put(m.getId(), g);
-
-                Element node = new Element("node");
-                node.addContent(new Element("id").setText(m.getId() + ""));
-                node.addContent(new Element("name").setText(m.getName()));
-                node.addContent(new Element("description").setText(m.getDescription()));
-                node.addContent(new Element("namespacePrefix").setText(m.getNamespacePrefix()));
-                node.addContent(new Element("namespaceUrl").setText(m.getNamespace()));
-                node.addContent(new Element("adminUrl").setText(m.getConfigurl()));
-                node.addContent(new Element("wmsUrl").setText(m.getWmsurl()));
-                node.addContent(new Element("wfsUrl").setText(m.getWfsurl()));
-                node.addContent(new Element("wcsUrl").setText(m.getWcsurl()));
-                node.addContent(new Element("stylerUrl").setText(m.getStylerurl()));
-                geoserverConfig.addContent(node);
-            }
+            GeoServerRest gsr = new GeoServerRest(requestFactory, m.getConfigurl(),
+                    m.getUsername(), m.getPassword(),
+                    m.getNamespacePrefix(), baseUrl);
+		GeoServerNode g = new GeoServerNode(m);
+		g.setRest(gsr);
+		Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + "on REST endpoint " + m.getConfigurl());
+		try {
+			Collection<String> wsnames = gsr.listAvailableWorkspaces();
+			for (String ws : wsnames) {
+				Element node = new Element("node");
+				node.addContent(new Element("id").setText(g.getId() + "-" + ws));
+				node.addContent(new Element("name").setText(g.getName() + "-" + ws));
+				node.addContent(new Element("description").setText(m.getDescription()));
+				node.addContent(new Element("namespacePrefix").setText(ws));
+				node.addContent(new Element("namespaceUrl").setText(g.getNamespaceUrl() + "/" + ws));
+				node.addContent(new Element("adminUrl").setText(m.getConfigurl()));
+				node.addContent(new Element("wmsUrl").setText(g.getPublicUrl() + ws + "/wms"));
+				node.addContent(new Element("wfsUrl").setText(g.getPublicUrl() + ws + "/wfs"));
+				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
+				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
+				geoserverConfig.addContent(node);
+				geoserverNodes.put(m.getId(), g);
+				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());
+				geoserverWorkspaceList.put(g.getId() + "-" + ws, ws);
+			}
+		} catch (Exception e) {
+			Log.error(MODULE, "Failed to get available workspaces in node " + m.getId() + ", Exception " + e.getMessage());
+		}
         }
         return geoserverConfig;
     }
