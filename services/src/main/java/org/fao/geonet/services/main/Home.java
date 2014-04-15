@@ -158,7 +158,8 @@ public class Home implements Service {
             user.addContent(username);
 
             Element profile = new Element("profile");
-            profile.setText(session.getProfile().name());
+            if (session.getProfile() != null)
+                profile.setText(session.getProfile().name());
             user.addContent(profile);
         } else {
             Element authenticated = new Element("authenticated");
