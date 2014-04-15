@@ -33,6 +33,7 @@ public class User extends GeonetEntity implements UserDetails {
     private String _name;
     private Set<String> _email = new HashSet<String>();
     private Set<Address> _addresses = new LinkedHashSet<Address>();
+    private String _geopublish;
     private String _organisation;
     private String _kind;
     private Profile _profile = Profile.RegisteredUser;
@@ -236,6 +237,20 @@ public class User extends GeonetEntity implements UserDetails {
     }
 
     /**
+     * Return the geopublish privileges the user has.
+     *
+     * @return the user's geopublish attr
+     */
+    public String getGeopublicationPrivileges() {
+        return _geopublish;
+    }
+
+    public User setGeopublicationPrivileges(String geopublish) {
+        this._geopublish = geopublish;
+        return this;
+    }
+
+    /**
      * Get the 'kind' of user. Just a sting representing the type or category of the user. It can be customized for a particular
      * application. An example is GOV or CONTRACTOR.
      */
@@ -373,6 +388,9 @@ public class User extends GeonetEntity implements UserDetails {
         }
         if (mergeNullData || otherUser.getProfile() != null) {
             setProfile(otherUser.getProfile());
+        }
+        if (mergeNullData || otherUser.getGeopublicationPrivileges() != null) {
+            setGeopublicationPrivileges(otherUser.getGeopublicationPrivileges());
         }
 
         _email.clear();

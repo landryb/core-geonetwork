@@ -28,6 +28,7 @@ import javax.servlet.ServletContext;
 
 import jeeves.interfaces.Service;
 import jeeves.server.ServiceConfig;
+import jeeves.server.UserSession;
 import jeeves.server.context.ServiceContext;
 import jeeves.server.overrides.ConfigurationOverrides;
 import org.fao.geonet.domain.MapServer;
@@ -255,6 +256,9 @@ public class Do implements Service {
     			+ ":" + settingsManager.getValue("system/server/port")
     			+ context.getBaseUrl();
 
+	UserSession session = context.getUserSession();
+	String geopub = session.getPrincipal().getGeopublicationPrivileges();
+
         final java.util.List<MapServer> mapservers =
                 context.getBean(MapServerRepository.class)
                         .findAll();
@@ -266,9 +270,20 @@ public class Do implements Service {
                     m.getNamespacePrefix(), baseUrl);
 		GeoServerNode g = new GeoServerNode(m);
 		g.setRest(gsr);
-		Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + "on REST endpoint " + m.getConfigurl());
+		Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + " on REST endpoint " + m.getConfigurl());
 		try {
 			Collection<String> wsnames = gsr.listAvailableWorkspaces();
+
+			/* create user workspace if missing */
+			if (geopub != null) {
+				Log.debug(MODULE, "Logged in user can write to workspace " + geopub);
+				if (!wsnames.contains(geopub)) {
+					/* XXX try to create in the geoserver only if it's "dynamic" */
+					Log.debug(MODULE, "Workspace " + geopub + " not existing, creating it");
+					g.getRest().createWorkspace(geopub);
+					wsnames.add(geopub);
+				}
+			}
 			for (String ws : wsnames) {
 				Element node = new Element("node");
 				node.addContent(new Element("id").setText(g.getId() + "-" + ws));
@@ -281,13 +296,15 @@ public class Do implements Service {
 				node.addContent(new Element("wfsUrl").setText(g.getPublicUrl() + ws + "/wfs"));
 				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
 				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
-				geoserverConfig.addContent(node);
+				/* XXX show all workspaces if geopub attr is null ? */
+				if (geopub == null || geopub.equals(ws))
+					geoserverConfig.addContent(node);
 				geoserverNodes.put(m.getId(), g);
 				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());
 				geoserverWorkspaceList.put(g.getId() + "-" + ws, ws);
 			}
 		} catch (Exception e) {
-			Log.error(MODULE, "Failed to get available workspaces in node " + m.getId() + ", Exception " + e.getMessage());
+			Log.error(MODULE, "Failed to get available (or create) workspaces in node " + m.getId() + ", Exception " + e.getMessage());
 		}
         }
         return geoserverConfig;

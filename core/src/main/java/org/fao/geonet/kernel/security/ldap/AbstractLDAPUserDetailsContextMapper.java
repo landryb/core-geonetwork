@@ -104,6 +104,7 @@ public abstract class AbstractLDAPUserDetailsContextMapper implements
                 .setZip(getUserInfo(userInfo, "zip"))
                 .setCity(getUserInfo(userInfo, "city"))
                 .setCountry(getUserInfo(userInfo, "country"));
+        user.setGeopublicationPrivileges(getUserInfo(userInfo, "geopublish"));
 
         // Set privileges for the user. If not, privileges are handled
         // in local database
