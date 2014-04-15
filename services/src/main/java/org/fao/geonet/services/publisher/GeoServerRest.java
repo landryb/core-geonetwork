@@ -132,6 +132,7 @@ public class GeoServerRest {
 	 */
 	public Collection<String> listAvailableWorkspaces() throws IOException,JDOMException {
 		LinkedList<String> wsnames = new LinkedList<String>();
+		String msg;
 		int status = sendREST(GeoServerRest.METHOD_GET, "/workspaces.xml"
 				, null, null, null, true);
 		checkResponseCode(status);
@@ -139,19 +140,29 @@ public class GeoServerRest {
 			return null;
 		Element doc = Xml.loadString(getResponse(), false);
 		List workspaces = doc.getChildren("workspace");
-		if(Log.isDebugEnabled(LOGGER_NAME)) {
-			Log.debug(LOGGER_NAME, "found " + workspaces.size() + " workspaces in " + restUrl);
-		}
+		msg = "found " + workspaces.size() + " workspaces in " + restUrl + ":";
 		for (int i = 0; i < workspaces.size(); i++) {
 			Element ws = (Element) workspaces.get(i);
 			String workspace = ws.getChildText("name");
-			if(Log.isDebugEnabled(LOGGER_NAME)) {
-				Log.debug(LOGGER_NAME, "workspace:" + workspace);
-			}
+			msg += " " + workspace;
 			wsnames.add(workspace);
+		}
+		if(Log.isDebugEnabled(LOGGER_NAME)) {
+			Log.debug(LOGGER_NAME, msg);
 		}
 		return wsnames;
 	}
+
+	/**
+	 * Create the given workspace in the remote server
+	 */
+	public boolean createWorkspace(String workspace) throws IOException {
+		String xml = "<workspace><name>" + workspace + "</name></workspace>";
+		int status = sendREST(GeoServerRest.METHOD_POST, "/workspaces.xml",
+				xml, null, "text/xml", false);
+		return status == 201;
+	}
+
 	/**
 	 * Retrieve layer (feature type or coverage) information. Use @see
 	 * #getResponse() to get the message returned.
