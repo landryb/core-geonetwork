@@ -33,7 +33,7 @@ public class User extends GeonetEntity implements UserDetails {
     private String _name;
     private Set<String> _email = new HashSet<String>();
     private Set<Address> _addresses = new LinkedHashSet<Address>();
-    private String _geopublish;
+    private Collection<String> _geopublish = new HashSet<String>();
     private String _organisation;
     private String _kind;
     private Profile _profile = Profile.RegisteredUser;
@@ -241,11 +241,14 @@ public class User extends GeonetEntity implements UserDetails {
      *
      * @return the user's geopublish attr
      */
-    public String getGeopublicationPrivileges() {
+    @ElementCollection(fetch = FetchType.EAGER, targetClass = String.class)
+    @CollectionTable(name = "geopublish")
+    @Column(name = "geopublish")
+    public Collection<String> getGeopublicationPrivileges() {
         return _geopublish;
     }
 
-    public User setGeopublicationPrivileges(String geopublish) {
+    public User setGeopublicationPrivileges(Collection<String> geopublish) {
         this._geopublish = geopublish;
         return this;
     }
@@ -439,6 +442,7 @@ public class User extends GeonetEntity implements UserDetails {
         if (_kind != null ? !_kind.equals(user._kind) : user._kind != null) return false;
         if (_name != null ? !_name.equals(user._name) : user._name != null) return false;
         if (_organisation != null ? !_organisation.equals(user._organisation) : user._organisation != null) return false;
+        if (_geopublish != null ? !_geopublish.equals(user._geopublish) : user._geopublish != null) return false;
         if (_profile != user._profile) return false;
         if (!_security.equals(user._security)) return false;
         if (_surname != null ? !_surname.equals(user._surname) : user._surname != null) return false;
@@ -456,6 +460,7 @@ public class User extends GeonetEntity implements UserDetails {
         result = 31 * result + _email.hashCode();
         result = 31 * result + _addresses.hashCode();
         result = 31 * result + (_organisation != null ? _organisation.hashCode() : 0);
+        result = 31 * result + (_geopublish != null ? _geopublish.hashCode() : 0);
         result = 31 * result + (_kind != null ? _kind.hashCode() : 0);
         result = 31 * result + (_profile != null ? _profile.hashCode() : 0);
         result = 31 * result + _security.hashCode();

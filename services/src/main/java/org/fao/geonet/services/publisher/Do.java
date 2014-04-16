@@ -257,7 +257,7 @@ public class Do implements Service {
     			+ context.getBaseUrl();
 
 	UserSession session = context.getUserSession();
-	String geopub = session.getPrincipal().getGeopublicationPrivileges();
+	Collection<String> geopub = session.getPrincipal().getGeopublicationPrivileges();
 
         final java.util.List<MapServer> mapservers =
                 context.getBean(MapServerRepository.class)
@@ -274,15 +274,19 @@ public class Do implements Service {
 		try {
 			Collection<String> wsnames = gsr.listAvailableWorkspaces();
 
-			/* create user workspace if missing */
-			if (geopub != null) {
-				Log.debug(MODULE, "Logged in user can write to workspace " + geopub);
-				if (!wsnames.contains(geopub)) {
-					/* XXX try to create in the geoserver only if it's "dynamic" */
-					Log.debug(MODULE, "Workspace " + geopub + " not existing, creating it");
-					g.getRest().createWorkspace(geopub);
-					wsnames.add(geopub);
+			/* create user workspaces if missing */
+			if (!geopub.isEmpty()) {
+				String dbg = "Logged in user can write to workspace: ";
+				for (String s : geopub) {
+					dbg += " " + s;
+					if (!wsnames.contains(s)) {
+						/* XXX try to create in the geoserver only if it's "dynamic" */
+						Log.debug(MODULE, "Workspace " + s + " not existing, creating it");
+						g.getRest().createWorkspace(s);
+						wsnames.add(s);
+					}
 				}
+				Log.debug(MODULE, dbg);
 			}
 			for (String ws : wsnames) {
 				Element node = new Element("node");
@@ -296,8 +300,8 @@ public class Do implements Service {
 				node.addContent(new Element("wfsUrl").setText(g.getPublicUrl() + ws + "/wfs"));
 				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
 				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
-				/* XXX show all workspaces if geopub attr is null ? */
-				if (geopub == null || geopub.equals(ws))
+				/* XXX show all workspaces if geopub is empty ? */
+				if (geopub.isEmpty() || geopub.contains(ws))
 					geoserverConfig.addContent(node);
 				geoserverNodes.put(m.getId(), g);
 				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());

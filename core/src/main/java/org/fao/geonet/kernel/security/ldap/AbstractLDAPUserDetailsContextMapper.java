@@ -23,9 +23,11 @@
 package org.fao.geonet.kernel.security.ldap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -104,7 +106,11 @@ public abstract class AbstractLDAPUserDetailsContextMapper implements
                 .setZip(getUserInfo(userInfo, "zip"))
                 .setCity(getUserInfo(userInfo, "city"))
                 .setCountry(getUserInfo(userInfo, "country"));
-        user.setGeopublicationPrivileges(getUserInfo(userInfo, "geopublish"));
+        // geopublish is a semicolon-separated list of workspaces
+        String geopub = getUserInfo(userInfo, "geopublish");
+        if (!geopub.isEmpty()) {
+            user.setGeopublicationPrivileges(new HashSet<String>(Arrays.asList(geopub.split(";"))));
+        }
 
         // Set privileges for the user. If not, privileges are handled
         // in local database
