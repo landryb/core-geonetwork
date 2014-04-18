@@ -47,6 +47,7 @@ import org.jdom.JDOMException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -266,27 +267,32 @@ public class Do implements Service {
         Element geoserverConfig = new Element("nodes");
         for (MapServer m : mapservers) {
             GeoServerRest gsr = new GeoServerRest(requestFactory, m.getConfigurl(),
-                    m.getUsername(), m.getPassword(),
+                    m.getUsername(), m.getPassword(), m.getDatadirPath(),
                     m.getNamespacePrefix(), baseUrl);
 		GeoServerNode g = new GeoServerNode(m);
 		g.setRest(gsr);
-		Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + " on REST endpoint " + m.getConfigurl());
 		try {
-			Collection<String> wsnames = gsr.listAvailableWorkspaces();
+			// if the remote server is not discoverable, default to the workspace given in the config
+			Collection<String> wsnames = new LinkedList<String>();
+			wsnames.add(m.getNamespacePrefix());
+			if (m.getShouldDiscoverWorkspaces()) {
+				wsnames = gsr.listAvailableWorkspaces();
+				Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + " on REST endpoint " + m.getConfigurl());
 
-			/* create user workspaces if missing */
-			if (!geopub.isEmpty()) {
-				String dbg = "Logged in user can write to workspace: ";
-				for (String s : geopub) {
-					dbg += " " + s;
-					if (!wsnames.contains(s)) {
-						/* XXX try to create in the geoserver only if it's "dynamic" */
-						Log.debug(MODULE, "Workspace " + s + " not existing, creating it");
-						g.getRest().createWorkspace(s);
-						wsnames.add(s);
+				/* create user workspaces if missing */
+				if (!geopub.isEmpty()) {
+					String dbg = "Logged in user can write to workspace: ";
+					for (String s : geopub) {
+						dbg += " " + s;
+						if (!wsnames.contains(s)) {
+							/* XXX try to create in the geoserver only if it's "dynamic" */
+							Log.debug(MODULE, "Workspace " + s + " not existing, creating it");
+							g.getRest().createWorkspace(s);
+							wsnames.add(s);
+						}
 					}
+					Log.debug(MODULE, dbg);
 				}
-				Log.debug(MODULE, dbg);
 			}
 			for (String ws : wsnames) {
 				Element node = new Element("node");
@@ -301,7 +307,7 @@ public class Do implements Service {
 				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
 				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
 				/* XXX show all workspaces if geopub is empty ? */
-				if (geopub.isEmpty() || geopub.contains(ws))
+				if (!m.getShouldDiscoverWorkspaces() || geopub.isEmpty() || geopub.contains(ws))
 					geoserverConfig.addContent(node);
 				geoserverNodes.put(m.getId(), g);
 				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());

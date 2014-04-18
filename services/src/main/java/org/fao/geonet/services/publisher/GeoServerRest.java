@@ -76,6 +76,7 @@ public class GeoServerRest {
 	private String password;
 	private String username;
 	private String restUrl;
+	private String datadirPath;
 	private String baseCatalogueUrl;
 	private String defaultWorkspace;
 	private String response;
@@ -95,10 +96,11 @@ public class GeoServerRest {
 	 *            TODO
 	 */
 	public GeoServerRest(GeonetHttpRequestFactory factory, String url, String username, String password,
-			String defaultns, String baseCatalogueUrl) {
+			String datadirPath, String defaultns, String baseCatalogueUrl) {
         this.restUrl = url;
         this.username = username;
         this.password = password;
+        this.datadirPath = datadirPath;
         this.baseCatalogueUrl = baseCatalogueUrl;
         this.factory = factory;
         Log.createLogger(LOGGER_NAME);
@@ -161,6 +163,18 @@ public class GeoServerRest {
 		int status = sendREST(GeoServerRest.METHOD_POST, "/workspaces.xml",
 				xml, null, "text/xml", false);
 		return status == 201;
+	}
+
+	/**
+	 * Set admin ACL on a workspace for a role
+	 * writes "workspace.*.a=role" to geoserver_data_dir/security/layers.properties
+	 * and calls /rest/reload to ensure geoserver rereads it
+	 */
+	public boolean setAdminRoleOnWorkspace(String workspace, String role) throws IOException {
+		// TODO: write acl to layers.properties
+		int status = sendREST(GeoServerRest.METHOD_POST, "/reload"
+				, null, null, null, false);
+		return status == 200;
 	}
 
 	/**

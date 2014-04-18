@@ -592,6 +592,8 @@
     "wcsurl": "WCS service URL",
     "wfsurl": "WFS service URL",
     "stylerurl": "Styler URL",
+    "shouldDiscoverWorkspaces": "Geonetwork should try to discover workspaces",
+    "datadirPath": "Path to GeoServer datadir for ACL tweaking",
     "workspace": "Workspace",
     "workspace-help": "Namespace prefix and namespace URL corresponding to the workspace data hase to be published in.",
 

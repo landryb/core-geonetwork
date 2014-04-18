@@ -54,6 +54,8 @@
           'stylerUrl': '',
           'username': '',
           'password': '',
+          'datadirPath': '',
+          'shouldDiscoverWorkspaces': '',
           'namespaceUrl': '',
           'namespacePrefix': ''
         };

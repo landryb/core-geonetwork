@@ -34,6 +34,8 @@ public class MapServer {
     private String _stylerurl;
     private String _username;
     private String _password;
+    private String _datadirpath;
+    private boolean _shouldDiscoverWorkspaces;
     private String _namespaceprefix;
     private String _namespace;
 
@@ -148,6 +150,19 @@ public class MapServer {
     }
 
     /**
+     * Get the datadir path for the mapserver.
+     */
+    @Column(length = 255)
+    public String getDatadirPath() {
+        return _datadirpath;
+    }
+
+    public MapServer setDatadirPath(String _datadirpath) {
+        this._datadirpath = _datadirpath;
+        return this;
+    }
+
+    /**
      * Get the WMS URL for the mapserver.
      *
      * @return the WMS URL.
@@ -234,6 +249,19 @@ public class MapServer {
 
     public MapServer setPassword(String _password) {
         this._password = _password;
+        return this;
+    }
+
+    /**
+     * Get whether geonetwork should discover workspaces in the remote mapserver
+     */
+    @Column(columnDefinition = "TINYINT(1) default 0")
+    public boolean getShouldDiscoverWorkspaces() {
+        return _shouldDiscoverWorkspaces;
+    }
+
+    public MapServer setShouldDiscoverWorkspaces(boolean _shouldDiscoverWorkspaces) {
+        this._shouldDiscoverWorkspaces = _shouldDiscoverWorkspaces;
         return this;
     }
 
