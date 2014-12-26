@@ -275,7 +275,7 @@ public class Do implements Service {
 			// if the remote server is not discoverable, default to the workspace given in the config
 			Collection<String> wsnames = new LinkedList<String>();
 			wsnames.add(m.getNamespacePrefix());
-			if (m.getShouldDiscoverWorkspaces()) {
+			if (m.shouldDiscoverWorkspaces()) {
 				wsnames = gsr.listAvailableWorkspaces();
 				Log.debug(MODULE, "Updating list of available workspaces for node id " + m.getId()  + " on REST endpoint " + m.getConfigurl());
 
@@ -307,7 +307,7 @@ public class Do implements Service {
 				node.addContent(new Element("wcsUrl").setText(g.getPublicUrl() + ws + "/wcs"));
 				node.addContent(new Element("stylerUrl").setText(g.getPublicUrl() + "/www/styler/index.html")); //XXX
 				/* XXX show all workspaces if geopub is empty ? */
-				if (!m.getShouldDiscoverWorkspaces() || geopub.isEmpty() || geopub.contains(ws))
+				if (!m.shouldDiscoverWorkspaces() || geopub.isEmpty() || geopub.contains(ws))
 					geoserverConfig.addContent(node);
 				geoserverNodes.put(m.getId(), g);
 				geoserverRestList.put(g.getId() + "-" + ws, g.getRest());

@@ -35,7 +35,7 @@ public class MapServer {
     private String _username;
     private String _password;
     private String _datadirpath;
-    private boolean _shouldDiscoverWorkspaces;
+    private char _shouldDiscoverWorkspaces = Constants.YN_FALSE;
     private String _namespaceprefix;
     private String _namespace;
 
@@ -255,14 +255,20 @@ public class MapServer {
     /**
      * Get whether geonetwork should discover workspaces in the remote mapserver
      */
-    @Column(columnDefinition = "TINYINT(1) default 0")
-    public boolean getShouldDiscoverWorkspaces() {
+    @Column(name="shoulddiscover", nullable = false, length = 1)
+    protected char getShouldDiscoverWorkspaces_JpaWorkaround() {
         return _shouldDiscoverWorkspaces;
     }
+    protected void setShouldDiscoverWorkspaces_JpaWorkaround(char shouldDiscoverWorkspaces) {
+        _shouldDiscoverWorkspaces = shouldDiscoverWorkspaces;
+    }
+    @Transient
+    public boolean shouldDiscoverWorkspaces() {
+        return Constants.toBoolean_fromYNChar(getShouldDiscoverWorkspaces_JpaWorkaround());
+    }
 
-    public MapServer setShouldDiscoverWorkspaces(boolean _shouldDiscoverWorkspaces) {
-        this._shouldDiscoverWorkspaces = _shouldDiscoverWorkspaces;
-        return this;
+    public void setShouldDiscoverWorkspaces(boolean _shouldDiscoverWorkspaces) {
+        setShouldDiscoverWorkspaces_JpaWorkaround(Constants.toYN_EnabledChar(_shouldDiscoverWorkspaces));
     }
 
     /**
