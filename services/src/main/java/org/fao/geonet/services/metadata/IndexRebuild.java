@@ -33,6 +33,8 @@ import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.kernel.search.SearchManager;
 import org.jdom.Element;
 
+import java.nio.file.Path;
+
 //=============================================================================
 
 /** Force rebuild Lucene index 
@@ -48,7 +50,7 @@ public class IndexRebuild implements Service
 	//---
 	//--------------------------------------------------------------------------
 
-	public void init(String appPath, ServiceConfig config) throws Exception {
+	public void init(Path appPath, ServiceConfig config) throws Exception {
 		_config = config;
 	}
 
@@ -62,7 +64,8 @@ public class IndexRebuild implements Service
 	{
 		boolean xlinks = false;
 		boolean reset = "yes".equals(Util.getParam(params, "reset", "no"));
-		String rebuildXLinkIndex = _config.getValue("rebuildxlinkindex");
+        boolean fromSelection = "yes".equals(Util.getParam(params, "fromSelection", "no"));
+        String rebuildXLinkIndex = _config.getValue("rebuildxlinkindex");
 		if (rebuildXLinkIndex != null) {
 			xlinks = rebuildXLinkIndex.equals("yes");
 		}
@@ -71,7 +74,7 @@ public class IndexRebuild implements Service
 
 		SearchManager searchMan = gc.getBean(SearchManager.class);
 		
-		boolean info = searchMan.rebuildIndex(context, xlinks, reset);
+		boolean info = searchMan.rebuildIndex(context, xlinks, reset, fromSelection);
 
 		Element elResp = new Element(Jeeves.Elem.RESPONSE);
 		elResp.addContent(new Element("status").setText((info?"true":"false")));

@@ -1,4 +1,4 @@
-<div class="gn-geopublisher-panel">
+<div class="gn-geopublisher-panel" data-ng-show="nodes.length > 0">
   <div class="btn-group">
     <button type="button" class="btn btn-warning dropdown-toggle" 
       data-toggle="dropdown">
@@ -23,7 +23,7 @@
 
       <select data-ng-model="nodeId"
               data-ng-change="selectNode(nodeId)">
-        <option data-ng-repeat="node in nodes" value="{{node.id}}">
+        <option data-ng-repeat="node in nodes track by $index" value="{{node.id}}">
           {{node.name}}
         </option>
       </select>
@@ -73,7 +73,7 @@
                     <a data-ng-click="setCheckBox('wcs', $event)" href=""> 
                       <i class="fa fa-check-square-o" data-ng-show="protocols.wcs.checked"></i>
                       <i class="fa fa-square-o" data-ng-hide="protocols.wcs.checked"></i>
-                      {{protocols.wms.label}}
+                      {{protocols.wcs.label}}
                     </a>
                   </li>
                   <li data-role="presentation" class="divider"></li>
@@ -86,6 +86,10 @@
                 </ul>
               </div>
           </div>
+          <button class="btn btn-link btn-xs" data-ng-click="openStyler(nodeId)"
+                  data-ng-class="hasStyler ? '' : 'hidden'">
+            <i class="fa fa-pencil"></i>&nbsp;<span data-translate="">style</span>
+          </button>
         </div>
       </form>
 

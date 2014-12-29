@@ -24,13 +24,10 @@
 package org.fao.geonet.services.publisher;
 
 
-import javax.servlet.ServletContext;
-
 import jeeves.interfaces.Service;
 import jeeves.server.ServiceConfig;
 import jeeves.server.UserSession;
 import jeeves.server.context.ServiceContext;
-import jeeves.server.overrides.ConfigurationOverrides;
 import org.fao.geonet.domain.MapServer;
 import org.fao.geonet.repository.MapServerRepository;
 import org.fao.geonet.utils.GeonetHttpRequestFactory;
@@ -42,10 +39,10 @@ import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.kernel.setting.SettingManager;
 import org.fao.geonet.lib.Lib;
 import org.jdom.Element;
-import org.jdom.JDOMException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.HashMap;
@@ -133,7 +130,7 @@ public class Do implements Service {
 	 * new nodes, restart is needed.
 	 * 
 	 */
-	public void init(String appPath, ServiceConfig params) throws Exception {
+	public void init(Path appPath, ServiceConfig params) throws Exception {
 		Log.createLogger(MODULE);
 	}
 
@@ -401,8 +398,8 @@ public class Do implements Service {
 	 * 
 	 * @param action
 	 * @param gs
-	 * @param file
-	 * @return
+	 * @param f
+     *@param file  @return
 	 * @throws java.io.IOException
 	 */
 	private Element addZipFile(ACTION action, String ws, GeoServerRest gs, File f, String file, String metadataUuid, String metadataTitle, String metadataAbstract)
@@ -480,7 +477,7 @@ public class Do implements Service {
 
 	private boolean publishVector(File f, String ws, GeoServerRest g, ACTION action, String metadataUuid, String metadataTitle, String metadataAbstract) {
 
-		String ds = f.getName();
+		String ds = f.getFileName().toString();
 		String dsName = ds.substring(0, ds.lastIndexOf("."));
 		try {
 			if (action.equals(ACTION.CREATE)) {

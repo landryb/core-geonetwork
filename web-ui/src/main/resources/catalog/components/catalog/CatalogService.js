@@ -94,7 +94,7 @@
            */
         importMd: function(data) {
           return $http({
-            url: 'md.insert@json',
+            url: 'md.insert?_content_type=json',
             method: 'POST',
             data: $.param(data),
             headers: {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -136,10 +136,14 @@
            * @return {HttpPromise} Future object
            */
         create: function(id, groupId, withFullPrivileges, 
-            isTemplate, isChild) {
+            isTemplate, isChild, tab) {
           this.copy(id, groupId, withFullPrivileges,
               isTemplate, isChild).success(function(data) {
-            $location.path('/metadata/' + data.id);
+              var path = '/metadata/' + data.id;
+              if (tab) {
+                path += '/tab/' + tab;
+              }
+            $location.path(path);
           });
           // TODO : handle creation error
         }

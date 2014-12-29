@@ -20,7 +20,7 @@ var gnHarvesterogcwxs = {
                 "icon" : "blank.gif"
             },
             "content" : {
-                "validate" : "false",
+                "validate" : "NOVALIDATION",
                 "importxslt" : "none"
             },
             "options" : {
@@ -29,9 +29,9 @@ var gnHarvesterogcwxs = {
                 "status" : "active",
                 "lang" : "eng",
                 "topic" : "",
-                "createThumbnails" : "true",
-                "useLayer" : "true",
-                "useLayerMd" : "true",
+                "createThumbnails" : "",
+                "useLayer" : "",
+                "useLayerMd" : "",
                 "datasetCategory" : "",
                 "outputSchema" : "iso19139"
             },
@@ -57,7 +57,7 @@ var gnHarvesterogcwxs = {
                 + '  <site>' 
                 + '    <name>' + h.site.name + '</name>' 
                 + '    <ogctype>' + h.site.ogctype + '</ogctype>' 
-                + '    <url>' + h.site.url + '</url>'
+                + '    <url>' + h.site.url.replace(/&/g, '&amp;') + '</url>'
                 + '    <icon>' + h.site.icon + '</icon>' 
                 + '    <account>'
                 + '      <use>' + h.site.account.use + '</use>'

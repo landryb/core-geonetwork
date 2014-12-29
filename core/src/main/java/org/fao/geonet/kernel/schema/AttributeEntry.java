@@ -30,6 +30,7 @@ package org.fao.geonet.kernel.schema;
 import org.jdom.Attribute;
 import org.jdom.Element;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,7 +56,7 @@ class AttributeEntry
 	//---
 	//---------------------------------------------------------------------------
 
-	public AttributeEntry(Element el, String file, String targetNS, String targetNSPrefix)
+	public AttributeEntry(Element el, Path file, String targetNS, String targetNSPrefix)
 	{
 		this(new ElementInfo(el, file, targetNS, targetNSPrefix));
 	}
@@ -126,13 +127,11 @@ class AttributeEntry
 	private void handleChildren(ElementInfo ei)
 	{
 		List<?> children = ei.element.getChildren();
-
         for (Object aChildren : children) {
             Element elChild = (Element) aChildren;
             String elName = elChild.getName();
             if (elName.equals("simpleType")) {
                 SimpleTypeEntry ste = new SimpleTypeEntry(elChild, ei.file, ei.targetNS, ei.targetNSPrefix);
-                
                 for (int j = 0; j < ste.alEnum.size(); j++) {
                     alValues.add(ste.alEnum.get(j));
                 }

@@ -18,10 +18,11 @@ var gnHarvestercsw = {
         },
         "capabilitiesUrl" : "http://",
         "rejectDuplicateResource" : "false",
-        "xslfilter": []
+        "xslfilter": [],
+        "outputSchema": ""
       },
       "content" : {
-        "validate" : "false"
+        "validate" : "NOVALIDATION"
       },
       "options" : {
         "every" : "0 0 0 ? * *",
@@ -69,7 +70,7 @@ var gnHarvestercsw = {
       + '  <site>'
       + '    <name>' + h.site.name + '</name>'
       + '    <rejectDuplicateResource>' + h.site.rejectDuplicateResource + '</rejectDuplicateResource>'
-      + '    <capabilitiesUrl>' + h.site.capabilitiesUrl + '</capabilitiesUrl>'
+      + '    <capabilitiesUrl>' + h.site.capabilitiesUrl.replace(/&/g, '&amp;') + '</capabilitiesUrl>'
       + '    <icon>' + h.site.icon + '</icon>'
       + '    <account>'
       + '      <use>' + h.site.account.use + '</use>'
@@ -77,6 +78,7 @@ var gnHarvestercsw = {
       + '      <password>' + h.site.account.password + '</password>'
       + '    </account>'
       + '    <xslfilter>' + h.site.xslfilter + '</xslfilter>'
+      + '    <outputSchema>' + h.site.outputSchema + '</outputSchema>'
       + '  </site>'
       + gnHarvestercsw.buildResponseCSWSearch($scope)
       + '  <options>'

@@ -34,6 +34,7 @@ import org.fao.geonet.kernel.setting.SettingManager;
 import org.fao.geonet.services.NotInReadOnlyModeService;
 import org.jdom.Element;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -51,7 +52,7 @@ public class CswPublicationDispatcher extends NotInReadOnlyModeService {
      * @throws Exception
      */
     @Override
-	public void init(String appPath, ServiceConfig config) throws Exception {
+	public void init(Path appPath, ServiceConfig config) throws Exception {
         super.init(appPath, config);
 		cswServiceSpecificContraint = config.getValue(Geonet.Elem.FILTER);
 	}
@@ -91,10 +92,8 @@ public class CswPublicationDispatcher extends NotInReadOnlyModeService {
         else {
             operation = params.getName();
         }
-        System.out.println("CSW operation: " + operation);
 
         if(!operation.equals("Harvest") && !operation.equals("Transaction")) {
-            System.out.println("Not a CSW Publication operation: " + operation);
             Element info  = new Element("info").setText("Not a CSW Publication operation: " + operation + ". Did you mean to use the CSW Discovery service? Use service name /csw");
 			response.addContent(info);
         }

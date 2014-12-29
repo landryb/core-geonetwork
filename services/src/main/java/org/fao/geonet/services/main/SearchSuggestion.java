@@ -27,15 +27,6 @@ import com.google.common.collect.ComparisonChain;
 import jeeves.interfaces.Service;
 import jeeves.server.ServiceConfig;
 import jeeves.server.context.ServiceContext;
-import org.apache.lucene.facet.taxonomy.TaxonomyReader;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.WildcardQuery;
-import org.fao.geonet.exceptions.BadParameterEx;
-import org.fao.geonet.kernel.search.IndexAndTaxonomy;
-import org.fao.geonet.kernel.search.LuceneConfig;
-import org.fao.geonet.kernel.search.index.GeonetworkMultiReader;
 import org.fao.geonet.utils.Log;
 import org.fao.geonet.Util;
 import org.apache.commons.lang.StringUtils;
@@ -44,12 +35,10 @@ import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.kernel.search.LuceneSearcher;
 import org.fao.geonet.kernel.search.SearchManager;
 import org.fao.geonet.kernel.search.SearchManager.TermFrequency;
-import org.fao.geonet.utils.Xml;
 import org.jdom.Attribute;
-import org.jdom.Content;
 import org.jdom.Element;
 
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -154,7 +143,7 @@ public class SearchSuggestion implements Service {
     /**
      * Set default parameters
      */
-    public void init(String appPath, ServiceConfig config) throws Exception {
+    public void init(Path appPath, ServiceConfig config) throws Exception {
         _threshold = Integer.valueOf(config.getValue(PARAM_THRESHOLD));
         String maxNumberOfTerms = config.getValue(CONFIG_PARAM_MAX_NUMBER_OF_TERMS);
         _maxNumberOfTerms = Integer.valueOf(maxNumberOfTerms);
@@ -199,8 +188,18 @@ public class SearchSuggestion implements Service {
         SearchManager sm = gc.getBean(SearchManager.class);
         // The response element
         Element suggestionsResponse = new Element(ELEM_ITEMS);
-        
-        List<SearchManager.TermFrequency> listOfSuggestions = new ArrayList<SearchManager.TermFrequency>();
+
+        TreeSet<SearchManager.TermFrequency> listOfSuggestions;
+
+        // Starts with element first
+        if (sortBy.equalsIgnoreCase(SORT_BY_OPTION.STARTSWITHFIRST.toString())) {
+            listOfSuggestions = new TreeSet<SearchManager.TermFrequency>(new StartsWithComparator(searchValueWithoutWildcard));
+        } else if (sortBy.equalsIgnoreCase(SORT_BY_OPTION.ALPHA.toString())) {
+            // Sort by alpha and frequency
+            listOfSuggestions = new TreeSet<SearchManager.TermFrequency>();
+        } else {
+            listOfSuggestions = new TreeSet<SearchManager.TermFrequency>(new FrequencyComparator());
+        }
         
         // If a field is stored, field values could be retrieved from the index
         // The main advantage is that only values from records visible to the
@@ -226,16 +225,6 @@ public class SearchSuggestion implements Service {
         }
         
         suggestionsResponse.setAttribute(new Attribute(PARAM_ORIGIN, origin));
-        
-        // Starts with element first
-        if (sortBy.equalsIgnoreCase(SORT_BY_OPTION.STARTSWITHFIRST.toString())) {
-            Collections.sort(listOfSuggestions, new StartsWithComparator(searchValueWithoutWildcard));
-        } else if (sortBy.equalsIgnoreCase(SORT_BY_OPTION.ALPHA.toString())) {
-            // Sort by alpha and frequency
-            Collections.sort(listOfSuggestions);
-        } else {
-            Collections.sort(listOfSuggestions, new FrequencyComparator());
-        }
 
         for (TermFrequency suggestion : listOfSuggestions) {
             Element md = new Element(ELEM_ITEM);

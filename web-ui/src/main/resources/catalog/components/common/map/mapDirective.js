@@ -19,7 +19,8 @@
              hleftRef: '@',
              hrightRef: '@',
              dcRef: '@',
-             lang: '='
+             lang: '=',
+             location: '@'
            },
            link: function(scope, element, attrs) {
              scope.drawing = false;
@@ -32,7 +33,9 @@
               */
              var setDcOutput = function() {
                if (scope.dcRef) {
-                 scope.dcExtent = gnMap.getDcExtent(scope.extent.md);
+                 scope.dcExtent = gnMap.getDcExtent(
+                 scope.extent.md,
+                 scope.location);
                }
              };
 
@@ -116,7 +119,7 @@
                  bboxLayer
                ],
                renderer: 'canvas',
-               view: new ol.View2D({
+               view: new ol.View({
                  center: [0, 0],
                  projection: scope.projs.map,
                  zoom: 2
@@ -218,7 +221,7 @@
                    parseFloat(region.south),
                    parseFloat(region.east),
                    parseFloat(region.north)];
-
+                 scope.location = region.name;
                  reprojExtent('md', 'map');
                  reprojExtent('md', 'form');
                  setDcOutput();

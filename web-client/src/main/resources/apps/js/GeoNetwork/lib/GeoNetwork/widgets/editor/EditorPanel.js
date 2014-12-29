@@ -53,7 +53,7 @@ GeoNetwork.editor.EditorPanel = Ext.extend(Ext.Panel, {
          *  Default edit mode to open the editor. Default to 'simple'.
          *  View mode is keep in user session (on the server).
          */
-        defaultEditMode: 'simple',
+        defaultEditMode: GeoNetwork.defaultViewMode || 'simple',
         editMode: null,
         /** api: config[thesaurusButton] 
          *  Use thesaurus selector and inline keyword selection 
@@ -1097,9 +1097,9 @@ GeoNetwork.editor.EditorPanel = Ext.extend(Ext.Panel, {
                     i = input.options.length;
                 }
             }
-            // FIXME this.enableLocalInput(input, false);
+            enableLocalInput(input, false);
         }, this);
-        
+
         // --- display validator events when needed.
         items = Ext.DomQuery.select('input,textarea,select');
         Ext.each(items, function(input){

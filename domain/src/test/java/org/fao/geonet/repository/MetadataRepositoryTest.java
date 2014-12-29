@@ -1,6 +1,11 @@
 package org.fao.geonet.repository;
 
-import org.fao.geonet.domain.*;
+import org.fao.geonet.domain.ISODate;
+import org.fao.geonet.domain.Metadata;
+import org.fao.geonet.domain.MetadataDataInfo_;
+import org.fao.geonet.domain.MetadataSourceInfo;
+import org.fao.geonet.domain.Metadata_;
+import org.fao.geonet.domain.Pair;
 import org.fao.geonet.repository.specification.MetadataSpecs;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,13 +13,22 @@ import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.domain.Specifications;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class MetadataRepositoryTest extends AbstractSpringDataTest {
 
@@ -169,6 +183,25 @@ public class MetadataRepositoryTest extends AbstractSpringDataTest {
         assertEquals(metadata3.getDataInfo().getChangeDate(), secondPage.getContent().get(2).two());
     }
 
+    @Test
+    public void testFindAllSourceInfo() throws Exception {
+        Metadata metadata = _repo.save(newMetadata());
+        Metadata metadata2 = _repo.save(newMetadata());
+        Metadata metadata3 = _repo.save(newMetadata());
+
+        final Specification<Metadata> spec = MetadataSpecs.hasMetadataIdIn(Arrays.asList(metadata.getId(), metadata3.getId()));
+        final Map<Integer, MetadataSourceInfo> allSourceInfo = _repo.findAllSourceInfo(Specifications.where(spec));
+
+        assertEquals(2, allSourceInfo.size());
+        assertTrue(allSourceInfo.containsKey(metadata.getId()));
+        assertFalse(allSourceInfo.containsKey(metadata2.getId()));
+        assertTrue(allSourceInfo.containsKey(metadata3.getId()));
+
+        assertNotNull(allSourceInfo.get(metadata.getId()));
+        assertNull(allSourceInfo.get(metadata2.getId()));
+        assertNotNull(allSourceInfo.get(metadata3.getId()));
+    }
+
     private Metadata updateChangeDate(Metadata metadata, String date) {
         metadata.getDataInfo().setChangeDate(new ISODate(date));
         return metadata;
@@ -192,7 +225,7 @@ public class MetadataRepositoryTest extends AbstractSpringDataTest {
         int val = inc.incrementAndGet();
         Metadata metadata = new Metadata().setUuid("uuid" + val).setData("<md>metadata" + val + "</md>");
         metadata.getDataInfo().setSchemaId("customSchema" + val);
-        metadata.getSourceInfo().setSourceId("source" + val);
+        metadata.getSourceInfo().setSourceId("source" + val).setOwner(1);
         metadata.getHarvestInfo().setUuid("huuid" + val);
         metadata.getHarvestInfo().setHarvested(val % 2 == 0);
         return metadata;

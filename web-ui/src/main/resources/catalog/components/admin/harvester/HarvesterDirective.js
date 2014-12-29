@@ -23,7 +23,7 @@
             'identification.html',
         link: function(scope, element, attrs) {
           scope.lang = 'eng'; // FIXME
-          $http.get('admin.harvester.info@json?type=icons', {cache: true})
+          $http.get('admin.harvester.info?type=icons&_content_type=json', {cache: true})
           .success(function(data) {
                 scope.icons = data[0];
               });
@@ -125,6 +125,8 @@
                    '@name' : 'view'
                  }, {
                    '@name' : 'dynamic'
+                 }, {
+                   '@name' : 'download'
                  }]};
              };
              var defaultPrivileges = [getPrivilege(1)];
@@ -151,7 +153,17 @@
                  scope.groups = data !== 'null' ? data.group : null;
                });
              }
+
+             var initHarvesterPrivileges = function() {
+
+               angular.forEach(scope.harvester.privileges, function(g) {
+                 scope.selectedPrivileges[g['@id']] = true;
+               });
+             };
+
              var init = function() {
+               scope.selectedPrivileges = {};
+
                loadGroups();
 
                // If only one privilege config
@@ -161,9 +173,8 @@
                scope.harvester.privileges[0]['@id'] == '1') {
                  $('#gn-harvester-visible-all').button('toggle');
                }
-               angular.forEach(scope.harvester.privileges, function(g) {
-                 scope.selectedPrivileges[g['@id']] = true;
-               });
+
+               initHarvesterPrivileges();
 
                scope.$watchCollection('selectedPrivileges', function() {
                  scope.harvester.privileges = [];
@@ -178,8 +189,8 @@
                });
              };
 
-             init();
 
+             scope.$watch('harvester', init);
            }
          };
        }]);

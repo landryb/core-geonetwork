@@ -13,11 +13,14 @@
    */
   module.controller('GnUserGroupController', [
     '$scope', '$routeParams', '$http', '$rootScope',
-    '$translate', '$compile', '$location',
-    'gnSearchManagerService',
+    '$translate', '$timeout',
     function($scope, $routeParams, $http, $rootScope, 
-        $translate, $compile, $location,
-            gnSearchManagerService) {
+        $translate, $timeout) {
+
+      $scope.searchParams = {
+        template: 'y or n',
+        sortBy: 'title'
+      };
 
       $scope.pageMenu = {
         folder: 'usergroup/',
@@ -60,19 +63,24 @@
       $scope.userGroups = {};
       // Indicate if an update is going on
       $scope.userOperation = 'editinfo';
-      $scope.userIsAdmin = false;
+      $scope.userIsAdmin = null;
       // On going changes for user ...
       $scope.userUpdated = false;
       $scope.passwordCheck = '';
 
+      $scope.isLoadingUsers = false;
+      $scope.isLoadingGroups = false;
 
 
 
       function loadGroups() {
+        $scope.isLoadingGroups = true;
         $http.get('admin.group.list@json').success(function(data) {
           $scope.groups = data !== 'null' ? data : null;
+          $scope.isLoadingGroups = false;
         }).error(function(data) {
           // TODO
+          $scope.isLoadingGroups = false;
         }).then(function() {
           // Search if requested group in location is
           // in the list and trigger selection.
@@ -88,10 +96,13 @@
         });
       }
       function loadUsers() {
+        $scope.isLoadingUsers = true;
         $http.get('admin.user.list@json').success(function(data) {
-          $scope.users = data;
+          $scope.users = data.users;
+          $scope.isLoadingUsers = false;
         }).error(function(data) {
           // TODO
+          $scope.isLoadingUsers = false;
         }).then(function() {
           // Search if requested user in location is
           // in the list and trigger user selection.
@@ -127,8 +138,15 @@
           zip: '',
           country: '',
           email: '',
-          organisation: ''
+          organisation: '',
+          groups: []
         };
+        $scope.userGroups = null;
+        $scope.userIsAdmin = false;
+        $timeout(function() {
+          $scope.setUserProfile();
+          $('#username').focus();
+        }, 100);
       };
 
       /**
@@ -149,24 +167,41 @@
        */
       $scope.selectUser = function(u) {
         $scope.userOperation = 'editinfo';
-        // Load user group and then select user
-        $http.get('admin.usergroups.list@json?id=' + u.id)
-                .success(function(data) {
-              $scope.userGroups = data;
-              $scope.userSelected = u;
-              $scope.userIsAdmin = u.profile === 'Administrator';
+        $scope.userIsAdmin = false;
+        $scope.userSelected = null;
+        $scope.userGroups = null;
+
+        $http.get('admin.user@json?id=' + u.value.id)
+          .success(function(data) {
+              $scope.userSelected = data;
+              $scope.userIsAdmin =
+                  (data.profile === 'Administrator');
+
+              // Load user group and then select user
+              $http.get('admin.usergroups.list@json?id=' + u.value.id)
+              .success(function(groups) {
+                    $scope.userGroups = groups;
+                  }).error(function(data) {
+                    // TODO
+                  });
             }).error(function(data) {
               // TODO
             });
 
+
+
         // Retrieve records in that group
         $scope.$broadcast('resetSearch', {
           template: 'y or n',
-          _owner: u.id,
+          _owner: u.value.id,
           sortBy: 'title'
         });
 
         $scope.userUpdated = false;
+
+        $timeout(function() {
+          $('#username').focus();
+        }, 100);
       };
 
 
@@ -225,9 +260,13 @@
        * When a user is a reviewer of a group, the corresponding
        * group is also selected in the editor profile list.
        */
-      $scope.setUserProfile = function(isAdmin) {
+      $scope.setUserProfile = function(checked) {
+        // Switch the profile (AFA a watch on userIsAdmin does not work).
+        if (checked) {
+          $scope.userIsAdmin = !$scope.userIsAdmin;
+        }
         $scope.userUpdated = true;
-        if (isAdmin) {
+        if ($scope.userIsAdmin) {
           // Unselect all groups option
           for (var i = 0; i < $scope.profiles.length; i++) {
             if ($scope.profiles[i] !== 'Administrator') {
@@ -262,7 +301,6 @@
           }
         }
       };
-
 
       $scope.updatingUser = function() {
         $scope.userUpdated = true;
@@ -326,6 +364,9 @@
           description: '',
           email: ''
         };
+        $timeout(function() {
+          $('#groupname').focus();
+        }, 100);
       };
 
       $scope.saveGroup = function(formId) {
@@ -382,6 +423,10 @@
           sortBy: 'title'
         });
         $scope.groupUpdated = false;
+
+        $timeout(function() {
+          $('#groupname').focus();
+        });
       };
 
       $scope.updatingGroup = function() {

@@ -153,7 +153,7 @@ public class LuceneQueryBuilder {
         // search criteria fields may contain zero or more _OR_ in their name, in which case the search will be a
         // disjunction of searches for fieldnames separated by that.
         //
-        // here such _OR_ fields are parsed, an OR searchCriteria map is created, and theyre removed from vanilla
+        // here such _OR_ fields are parsed, an OR searchCriteria map is created, and they're removed from vanilla
         // searchCriteria map.
         //
         Map<String, Set<String>> searchCriteriaOR = new HashMap<String, Set<String>>();
@@ -844,8 +844,11 @@ public class LuceneQueryBuilder {
             for (String token : Splitter.on(separator).trimResults().split(text)) {
                 // TODO : here we should use similarity if set
                 Query subQuery = textFieldToken(token, fieldName, null);
-                BooleanClause clause = new BooleanClause(subQuery, occur);
-                query.add(clause);
+                // The subquery may be null if the analyzed string is null
+                if (subQuery != null) {
+                    BooleanClause clause = new BooleanClause(subQuery, occur);
+                    query.add(clause);
+                }
             }
         }
     }

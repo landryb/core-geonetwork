@@ -1403,6 +1403,21 @@
           <xsl:choose>
             <xsl:when test="$helpLink!=''">
               <xsl:value-of select="$title"/>
+              <span class="editor-help-inline">
+              	<xsl:attribute name="onclick">
+              		<xsl:text>GeoNetwork.util.HelpTools.get(&quot;</xsl:text>
+              		<xsl:value-of select="$helpLink"/>
+              		<xsl:text>&quot;,&quot;</xsl:text>
+              		<xsl:value-of select="$schema"/>
+              		<xsl:text>&quot;,catalogue.services.schemaInfo, GeoNetwork.util.HelpTools.showtt)</xsl:text>
+              	</xsl:attribute>
+                <img class="x-panel-inline-icon">
+                	<xsl:attribute name="src">
+                		<xsl:value-of select="/root/gui/url"/>
+                		<xsl:text>/apps/images/default/help.png</xsl:text>
+                	</xsl:attribute>
+                </img>
+              </span>
             </xsl:when>
             <xsl:otherwise>
               <xsl:call-template name="showTitleWithTag">
@@ -1667,10 +1682,9 @@
           <tr>
             <td colspan="3">
               <xsl:apply-templates mode="coordinateElementGUI" select="$nEl/gco:Decimal">
-                <!-- FIXME make it schema generic -->
                 <xsl:with-param name="schema" select="$schema"/>
                 <xsl:with-param name="edit" select="$edit"/>
-                <xsl:with-param name="name" select="'gmd:northBoundLatitude'"/>
+                <xsl:with-param name="name" select="name($nEl)"/>
                 <xsl:with-param name="eltRef" select="concat('n', $eltRef)"/>
                 <xsl:with-param name="tabIndex" select="100"/>
               </xsl:apply-templates>
@@ -1683,7 +1697,7 @@
               <xsl:apply-templates mode="coordinateElementGUI" select="$wEl/gco:Decimal">
                 <xsl:with-param name="schema" select="$schema"/>
                 <xsl:with-param name="edit" select="$edit"/>
-                <xsl:with-param name="name" select="'gmd:westBoundLongitude'"/>
+                <xsl:with-param name="name" select="name($wEl)"/>
                 <xsl:with-param name="eltRef" select="concat('w', $eltRef)"/>
                 <xsl:with-param name="tabIndex" select="101"/>
               </xsl:apply-templates>
@@ -1747,7 +1761,7 @@
               <xsl:apply-templates mode="coordinateElementGUI" select="$eEl/gco:Decimal">
                 <xsl:with-param name="schema" select="$schema"/>
                 <xsl:with-param name="edit" select="$edit"/>
-                <xsl:with-param name="name" select="'gmd:eastBoundLongitude'"/>
+                <xsl:with-param name="name" select="name($eEl)"/>
                 <xsl:with-param name="eltRef" select="concat('e', $eltRef)"/>
                 <xsl:with-param name="tabIndex" select="103"/>
               </xsl:apply-templates>
@@ -1760,7 +1774,7 @@
               <xsl:apply-templates mode="coordinateElementGUI" select="$sEl/gco:Decimal">
                 <xsl:with-param name="schema" select="$schema"/>
                 <xsl:with-param name="edit" select="$edit"/>
-                <xsl:with-param name="name" select="'gmd:southBoundLatitude'"/>
+                <xsl:with-param name="name" select="name($sEl)"/>
                 <xsl:with-param name="eltRef" select="concat('s', $eltRef)"/>
                 <xsl:with-param name="tabIndex" select="102"/>
               </xsl:apply-templates>
@@ -2201,7 +2215,7 @@
           <xsl:when test="$label">
             <xsl:value-of select="$label"/>
           </xsl:when>
-          <xsl:when test="starts-with($schema,'iso19139') and (gco:CharacterString or gmd:PT_FreeText)">
+          <xsl:when test="starts-with($schema,'iso19139') and (../gco:CharacterString or ../gmd:PT_FreeText)">
             <xsl:apply-templates mode="localised" select="..">
               <xsl:with-param name="langId" select="$langId"/>
             </xsl:apply-templates>

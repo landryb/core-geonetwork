@@ -12,7 +12,7 @@
         'gnCurrentEdit',
         '$timeout',
         '$translate',
-        function(gnMap, gnOnlinesrc, 
+        function(gnMap, gnOnlinesrc,
             gnGeoPublisher, gnEditor, gnCurrentEdit,
             $timeout, $translate) {
           return {
@@ -22,14 +22,21 @@
                 'partials/geopublisher.html',
             scope: {
               config: '@'
-              // TODO: Add initial bbox
             },
             link: function(scope, element, attrs) {
               scope.resources = angular.fromJson(scope.config);
               scope.hidden = true;
               scope.loaded = false;
+              scope.hasStyler = false;
+              scope.nodes = null;
 
               var map, gsNode;
+              gnGeoPublisher.getList().success(function(data) {
+                if (data != 'null') {
+                  scope.nodes = data;
+                  scope.nodeId = data[0].id;
+                }
+              });
 
               var init = function() {
                 map = new ol.Map({
@@ -37,24 +44,25 @@
                     gnMap.getLayersFromConfig()
                   ],
                   renderer: 'canvas',
-                  view: new ol.View2D({
+                  view: new ol.View({
                     center: [0, 0],
                     projection: gnMap.getMapConfig().projection,
                     zoom: 2
                   })
                 });
 
-                gnGeoPublisher.getList().success(function(data) {
-                  if (data) {
-                    scope.nodes = data;
-                    scope.nodeId = data[0].id;
-                    scope.selectNode(scope.nodeId);
-                  }
+                scope.selectNode(scope.nodeId);
+                // we need to wait the scope.hidden binding is done
+                // before rendering the map.
+                map.setTarget(scope.mapId);
 
-                  // we need to wait the scope.hidden binding is done
-                  // before rendering the map.
-                  map.setTarget(scope.mapId);
-                });
+                // TODO : Zoom to all extent if more than one defined
+                if (angular.isArray(gnCurrentEdit.extent)) {
+                  map.getView().fitExtent(
+                      gnMap.reprojExtent(gnCurrentEdit.extent[0],
+                      'EPSG:4326', gnMap.getMapConfig().projection),
+                      map.getSize());
+                }
 
                 /**
                  * Protocols defined for the option
@@ -92,6 +100,7 @@
               scope.linkService = function() {
                 var snippet =
                     gnOnlinesrc.addFromGeoPublisher(scope.wmsLayerName,
+                    scope.resource.title,
                     gsNode, scope.protocols);
 
                 var snippetRef = gnEditor.buildXMLFieldName(
@@ -109,6 +118,35 @@
                   gnEditor.save(true);
                 });
               };
+              scope.openStyler = function() {
+                window.open(gsNode.stylerUrl +
+                    '?namespace=' + gsNode.namespacePrefix +
+                    '&layer=' + scope.wmsLayerName);
+              };
+              /**
+               * Dirty check if the node is a Mapserver REST API
+               * or a GeoServer REST API.
+               *
+               * @param {Object} gsNode
+               * @return {boolean}
+               */
+              var isMRA = function(gsNode) {
+                return gsNode.adminUrl &&
+                    gsNode.adminUrl.indexOf('/mra') !== -1;
+              };
+
+              /**
+               * Build WMS layername based on target map server.
+               *
+               * @param {Object} gsNode
+               */
+              var buildLayerName = function(gsNode) {
+                // Append prefix for GeoServer.
+                if (gsNode && !isMRA(gsNode)) {
+                  scope.wmsLayerName = gsNode.namespacePrefix +
+                      ':' + scope.wmsLayerName;
+                }
+              };
 
               /**
                * Add the layer of the node to the current
@@ -120,8 +158,7 @@
                   source: new ol.source.TileWMS({
                     url: gsNode.wmsUrl,
                     params: {
-                      'LAYERS': gsNode.namespacePrefix +
-                          ':' + scope.wmsLayerName
+                      'LAYERS': scope.wmsLayerName
                     }
                   })
                 }));
@@ -180,6 +217,8 @@
               scope.selectNode = function(nodeId) {
                 gsNode = getNodeById(nodeId);
                 scope.checkNode(nodeId);
+                buildLayerName(gsNode);
+                scope.hasStyler = !angular.isArray(gsNode.stylerUrl);
               };
 
               /**
@@ -239,21 +278,26 @@
                 scope.resource = r;
 
                 if (!scope.loaded) {
-                  init();
+                  // Let the div be displayed and then
+                  // init the map.
+                  $timeout(function() {
+                    init();
+                  });
                   scope.loaded = true;
                 }
 
                 // Build layer name based on file name
                 scope.layerName = r.name
-                  .replace(/.zip$|.tif$|.tiff$/, '');
+                  .replace(/.zip$|.tif$|.tiff$|.ecw$/, '');
                 scope.wmsLayerName = scope.layerName;
                 if (scope.layerName.match('^jdbc')) {
                   scope.wmsLayerName = scope.layerName.split('#')[1];
                 } else if (scope.layerName.match('^file')) {
                   scope.wmsLayerName = scope.layerName
                     .replace(/.*\//, '')
-                    .replace(/.zip$|.tif$|.tiff$/, '');
+                    .replace(/.zip$|.tif$|.tiff$|.ecw$/, '');
                 }
+                buildLayerName(gsNode);
               };
             }
           };

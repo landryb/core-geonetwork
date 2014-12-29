@@ -42,6 +42,17 @@
     </xsl:choose>
   </xsl:template>
 
+
+  <!-- Insert a HTML fragment in the editor from the
+  localization files. -->
+  <xsl:template mode="form-builder" match="text">
+    <xsl:variable name="id" select="@ref"/>
+    <xsl:variable name="text" select="$strings/*[name() = $id]"/>
+    <xsl:if test="$text">
+      <xsl:copy-of select="$text/*" copy-namespaces="no"/>
+    </xsl:if>
+  </xsl:template>
+
   <xsl:template mode="form-builder" match="action">
     <xsl:variable name="match">
       <xsl:choose>
@@ -374,12 +385,23 @@
             <xsl:variable name="id" select="concat($xpathFieldId, '_xml')"/>
             <xsl:variable name="isMissingLabel" select="@isMissingLabel"/>
 
+            <!-- Node does not exist, stripped gn:copy element from template. -->
+            <xsl:variable name="templateWithoutGnCopyElement" as="node()">
+              <template>
+                <xsl:copy-of select="$template/values"/>
+                <snippet>
+                  <xsl:apply-templates mode="gn-element-cleaner"
+                                       select="$template/snippet/*"/>
+                </snippet>
+              </template>
+            </xsl:variable>
+
             <xsl:call-template name="render-element-template-field">
               <xsl:with-param name="name" select="$strings/*[name() = $name]"/>
               <xsl:with-param name="id" select="$id"/>
               <xsl:with-param name="xpathFieldId" select="$xpathFieldId"/>
               <xsl:with-param name="isExisting" select="false()"/>
-              <xsl:with-param name="template" select="$template"/>
+              <xsl:with-param name="template" select="$templateWithoutGnCopyElement"/>
               <xsl:with-param name="isMissingLabel" select="$strings/*[name() = $isMissingLabel]"/>
             </xsl:call-template>
           </xsl:if>
@@ -387,8 +409,11 @@
       </xsl:choose>
     </xsl:if>
   </xsl:template>
-  
-  
+
+  <xsl:template mode="form-builder" match="section[@template]">
+    <saxon:call-template name="{@template}"/>
+  </xsl:template>
+
   <xsl:template mode="form-builder" match="action[@type='add']">
     <xsl:param name="base" as="node()"/>
     <!-- Match any gn:child nodes from the metadocument which
@@ -445,6 +470,7 @@
         <xsl:with-param name="template" select="template"/>
         <xsl:with-param name="hasAddAction" select="true()"/>
         <xsl:with-param name="addDirective" select="@addDirective"/>
+        <xsl:with-param name="directiveAttributes" select="directiveAttributes"/>
         <xsl:with-param name="parentRef" select="$nonExistingChildParent/*[position() = last()]/gn:element/@ref"/>
         <xsl:with-param name="qname" select="concat($nonExistingChildParent/*[position() = last()]/gn:child[@name = $childName]/@prefix, ':', @or)"/>
         <xsl:with-param name="isFirst" select="@forceLabel or count($elementOfSameKind/*) = 0"/>

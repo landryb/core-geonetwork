@@ -23,6 +23,7 @@
 
 package org.fao.geonet.component.csw;
 
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,8 +35,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import jeeves.server.context.ServiceContext;
-import org.fao.geonet.utils.Log;
 
+import org.fao.geonet.utils.Log;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DocumentStoredFieldVisitor;
@@ -234,7 +235,7 @@ public class GetDomain extends AbstractOperation implements CatalogService
 
 				Pair<TopDocs,Element> searchResults = LuceneSearcher.doSearchAndMakeSummary( 
 						maxRecords, 0, maxRecords, context.getLanguage(), 
-						null, reader, 
+						null, luceneConfig.getTaxonomyConfiguration(), reader,
 						query, filter, sort, null, false, false,
 						false, false	// Scoring is useless for GetDomain operation
 				);
@@ -249,7 +250,7 @@ public class GetDomain extends AbstractOperation implements CatalogService
 	
 					// check if params asked is in the index using getFieldNames ?
 					@SuppressWarnings("resource")
-                    FieldInfos fi = new SlowCompositeReaderWrapper(reader).getFieldInfos();
+                    FieldInfos fi = SlowCompositeReaderWrapper.wrap(reader).getFieldInfos();
 					if (fi.fieldInfo(property) == null)
 						continue;
 					
@@ -270,7 +271,9 @@ public class GetDomain extends AbstractOperation implements CatalogService
 	
 					// parse each document in the index
 					String[] fieldValues;
-					SortedSet<String> sortedValues = new TreeSet<String>();
+                    Collator stringCollator = Collator.getInstance();
+                    stringCollator.setStrength(Collator.PRIMARY);
+                    SortedSet<String> sortedValues = new TreeSet<String>(stringCollator);
 					ObjectKeyIntOpenHashMap duplicateValues = new ObjectKeyIntOpenHashMap();
 					for (int j = 0; j < hits.scoreDocs.length; j++) {
 					    DocumentStoredFieldVisitor selector = new DocumentStoredFieldVisitor(fields);

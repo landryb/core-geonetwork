@@ -304,6 +304,7 @@ for long description */
   padding : 7px 0px 7px 7px;
   vertical-align : top;
   text-align : left;
+  word-break: break-word;
 }
 .metadata * table.gn > tbody > tr > td.col {
   padding : 0px;
@@ -604,4 +605,9 @@ be use for custom styling in view mode */
 .gtsTMPeriodDuration + * input,
 .gmlduration + * input {
     float: none !important;
+}
+
+/* Hide by default inline help on editor */
+span.editor-help-inline {
+ 	display: none;
 }

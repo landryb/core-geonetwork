@@ -23,23 +23,45 @@
 
 package org.fao.geonet.kernel;
 
-import static org.fao.geonet.repository.specification.OperationAllowedSpecs.*;
-import static org.springframework.data.jpa.domain.Specifications.where;
-import java.util.*;
-
 import jeeves.server.UserSession;
 import jeeves.server.context.ServiceContext;
-
-import org.fao.geonet.domain.*;
+import org.fao.geonet.domain.Group;
+import org.fao.geonet.domain.HarvesterSetting;
+import org.fao.geonet.domain.Metadata;
+import org.fao.geonet.domain.MetadataSourceInfo;
+import org.fao.geonet.domain.Operation;
+import org.fao.geonet.domain.OperationAllowed;
 import org.fao.geonet.domain.Pair;
-import org.fao.geonet.repository.*;
+import org.fao.geonet.domain.Profile;
+import org.fao.geonet.domain.ReservedGroup;
+import org.fao.geonet.domain.ReservedOperation;
+import org.fao.geonet.domain.User;
+import org.fao.geonet.domain.UserGroup;
+import org.fao.geonet.domain.User_;
+import org.fao.geonet.repository.GroupRepository;
+import org.fao.geonet.repository.HarvesterSettingRepository;
+import org.fao.geonet.repository.MetadataRepository;
+import org.fao.geonet.repository.OperationAllowedRepository;
+import org.fao.geonet.repository.OperationRepository;
+import org.fao.geonet.repository.SortUtils;
+import org.fao.geonet.repository.UserGroupRepository;
+import org.fao.geonet.repository.UserRepository;
 import org.fao.geonet.repository.specification.UserGroupSpecs;
 import org.jdom.Element;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.domain.Specifications;
-import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.StringTokenizer;
+
+import static org.fao.geonet.repository.specification.OperationAllowedSpecs.hasMetadataId;
+import static org.fao.geonet.repository.specification.OperationAllowedSpecs.hasOperation;
+import static org.springframework.data.jpa.domain.Specifications.where;
 
 /**
  * Handles the access to a metadata depending on the metadata/group.
@@ -141,8 +163,12 @@ public class AccessManager {
      */
 	public Set<Operation> getAllOperations(ServiceContext context, String mdId, String ip) throws Exception {
 	    HashSet<Operation> operations = new HashSet<Operation>();
-	    for (OperationAllowed opAllow: _opAllowedRepository.findByMetadataId(mdId)) {
-	        operations.add(_opRepository.findOne(opAllow.getId().getOperationId()));
+        Set<Integer> groups = getUserGroups(context.getUserSession(),
+                ip, false);
+        for (OperationAllowed opAllow: _opAllowedRepository.findByMetadataId(mdId)) {
+            if (groups.contains(opAllow.getId().getGroupId())) {
+                operations.add(_opRepository.findOne(opAllow.getId().getOperationId()));
+            }
 	    }
 		return operations;
 	}
@@ -266,42 +292,63 @@ public class AccessManager {
      * @throws Exception
      */
 	public boolean isOwner(final ServiceContext context, final String id) throws Exception {
-		UserSession us = context.getUserSession();
-		if (!us.isAuthenticated()) {
-			return false;
-		}
 
 		//--- retrieve metadata info
 		Metadata info = _metadataRepository.findOne(id);
 
-		if (info == null)
-			return false;
+        if (info == null)
+            return false;
+        final MetadataSourceInfo sourceInfo = info.getSourceInfo();
+        return isOwner(context, sourceInfo);
+	}
 
-		//--- check if the user is an administrator
+    /**
+     * Return true if the current user is:
+     * <ul>
+     *     <li>administrator</li>
+     *     <li>the metadata owner (the user who created the record)</li>
+     *     <li>reviewer in the group the metadata was created</li>
+     * </ul>
+     *
+     * Note: old GeoNetwork was also restricting editing on harvested
+     * record. This is not restricted on the server side anymore.
+     * If a record is harvested it could be edited by default
+     * but the client application may restrict this condition.
+     *
+     * @param sourceInfo    The metadata source/owner information
+     */
+    public boolean isOwner(ServiceContext context, MetadataSourceInfo sourceInfo) throws Exception {
+
+        UserSession us = context.getUserSession();
+        if (!us.isAuthenticated()) {
+            return false;
+        }
+
+        //--- check if the user is an administrator
         final Profile profile = us.getProfile();
         if (profile == Profile.Administrator)
 			return true;
 
-		//--- check if the user is the metadata owner
-		//
-		if (us.getUserIdAsInt() == info.getSourceInfo().getOwner())
+        //--- check if the user is the metadata owner
+        //
+        if (us.getUserIdAsInt() == sourceInfo.getOwner())
 			return true;
 
-		//--- check if the user is a reviewer or useradmin
-		if (profile != Profile.Reviewer && profile != Profile.UserAdmin)
-			return false;
+        //--- check if the user is a reviewer or useradmin
+        if (profile != Profile.Reviewer && profile != Profile.UserAdmin)
+            return false;
 
-		//--- if there is no group owner then the reviewer cannot review and the useradmin cannot administer
-        final Integer groupOwner = info.getSourceInfo().getGroupOwner();
+        //--- if there is no group owner then the reviewer cannot review and the useradmin cannot administer
+        final Integer groupOwner = sourceInfo.getGroupOwner();
         if (groupOwner == null) {
             return false;
         }
-		for (Integer userGroup : getReviewerGroups(us)) {
-			if (userGroup == groupOwner.intValue())
-				return true;
-		}
-		return false;
-	}
+        for (Integer userGroup : getReviewerGroups(us)) {
+            if (userGroup == groupOwner.intValue())
+                return true;
+        }
+        return false;
+    }
 
     /**
      * TODO javadoc.
@@ -334,11 +381,12 @@ public class AccessManager {
 
         Element resultEl = new Element("results");
         for (Pair<Integer, User> integerUserPair : results) {
+            User user = integerUserPair.two();
             resultEl.addContent(new Element("record").
-                    addContent(new Element("userid")).
-                    addContent(new Element("name")).
-                    addContent(new Element("surname")).
-                    addContent(new Element("email"))
+                    addContent(new Element("userid").setText(user.getId() + "")).
+                    addContent(new Element("name").setText(user.getName())).
+                    addContent(new Element("surname").setText(user.getSurname())).
+                    addContent(new Element("email").setText(user.getEmail()))
             );
         }
         return resultEl;
@@ -362,6 +410,41 @@ public class AccessManager {
         }
     }
 
+    /**
+     * Returns whether a particular metadata is downloadable.
+     *
+     * @param context
+     * @param id
+     * @return
+     * @throws Exception
+     */
+    public boolean canDownload(final ServiceContext context, final String id) throws Exception {
+        if (isOwner(context, id)) {
+            return true;
+        }
+        int downloadId = ReservedOperation.download.getId();
+        Set<Operation> ops = getOperations(context, id, null);
+        for (Operation op : ops) {
+            if (op.getId() == downloadId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean canDynamic(final ServiceContext context, final String id) throws Exception {
+        if (isOwner(context, id)) {
+            return true;
+        }
+        int dynamicId = ReservedOperation.dynamic.getId();
+        Set<Operation> ops = getOperations(context, id, null);
+        for (Operation op : ops) {
+            if (op.getId() == dynamicId) {
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * Check if the group has the permission.
      *
@@ -396,10 +479,13 @@ public class AccessManager {
 
         Specifications spec = where (UserGroupSpecs.hasProfile(Profile.Editor)).and(UserGroupSpecs.hasUserId(us.getUserIdAsInt()));
 
+        List<Integer> opAlloweds = new ArrayList<Integer>();
         for (OperationAllowed opAllowed : allOpAlloweds) {
-                spec = spec.and(UserGroupSpecs.hasGroupId(opAllowed.getId().getGroupId()));
+        	opAlloweds.add(opAllowed.getId().getGroupId());
         }
-        return _userGroupRepository.findOne(spec) != null;
+        spec = spec.and(UserGroupSpecs.hasGroupIds(opAlloweds));
+        
+        return (! _userGroupRepository.findAll(spec).isEmpty());
     }
 
     /**
@@ -409,7 +495,11 @@ public class AccessManager {
      * @return
      */
 	public int getPrivilegeId(final String name) {
-		return _opRepository.findByName(name).getId();
+        final Operation op = _opRepository.findByName(name);
+        if (op == null) {
+            throw new IllegalArgumentException("No Operation/privilege found with name: " + name);
+        }
+        return op.getId();
 	}
 
     /**

@@ -274,7 +274,9 @@ GeoNetwork.mapApp = function() {
             },
             autoLoad: true
         });
-        
+        printProvider.on('printexception', function (provider, response) {
+          alert(response.responseText);
+        });
         printPage = new GeoExt.data.PrintPage({
             printProvider: printProvider
         });
@@ -363,9 +365,11 @@ GeoNetwork.mapApp = function() {
         });
         
         map.events.register('moveend', map, function () {
-            printPage.fit(this, {
-                mode: "screen"
-            });
+            if (!printPanel.collapsed) {
+                printPage.fit(this, {
+                    mode: "screen"
+                });
+            }
         });
     };
     /**

@@ -23,7 +23,6 @@
 
 package org.fao.geonet.services.user;
 
-import com.vividsolutions.jts.util.Assert;
 import jeeves.constants.Jeeves;
 import jeeves.server.ServiceConfig;
 import jeeves.server.UserSession;
@@ -38,8 +37,8 @@ import org.fao.geonet.repository.specification.UserGroupSpecs;
 import org.fao.geonet.services.NotInReadOnlyModeService;
 import org.fao.geonet.util.PasswordUtil;
 import org.jdom.Element;
-import org.springframework.context.ApplicationContext;
 
+import java.nio.file.Path;
 import java.util.*;
 import java.util.List;
 
@@ -53,7 +52,7 @@ public class Update extends NotInReadOnlyModeService {
 	//---
 	//--------------------------------------------------------------------------
 
-	public void init(String appPath, ServiceConfig params) throws Exception {}
+	public void init(Path appPath, ServiceConfig params) throws Exception {}
 
 	//--------------------------------------------------------------------------
 	//---
@@ -130,7 +129,8 @@ public class Update extends NotInReadOnlyModeService {
             }
 
             Address addressEntity;
-            if (user.getAddresses().isEmpty()) {
+            boolean hasNoAddress = user.getAddresses().isEmpty();
+            if (hasNoAddress) {
                 addressEntity = new Address();
             } else {
                 addressEntity = user.getAddresses().iterator().next();
@@ -152,7 +152,10 @@ public class Update extends NotInReadOnlyModeService {
                 addressEntity.setCountry(country);
             }
 
-            user.getAddresses().add(addressEntity);
+            if (hasNoAddress) {
+                user.getAddresses().add(addressEntity);
+            }
+
             if (email != null) {
                 user.getEmailAddresses().add(email);
             }
@@ -240,7 +243,7 @@ public class Update extends NotInReadOnlyModeService {
     private void setUserGroups(final User user, final Element params, final ServiceContext context) throws Exception {
 		String[] profiles = {Profile.UserAdmin.name(), Profile.Reviewer.name(), Profile.Editor.name(), Profile.RegisteredUser.name()};
         Collection<UserGroup> toAdd = new ArrayList<UserGroup>();
-
+        Set<String> listOfAddedProfiles = new HashSet<String>();
         final GroupRepository groupRepository = context.getBean(GroupRepository.class);
         final UserGroupRepository userGroupRepository = context.getBean(UserGroupRepository.class);
 
@@ -260,14 +263,22 @@ public class Update extends NotInReadOnlyModeService {
                                 .setGroup(group)
                                 .setProfile(Profile.Editor)
                                 .setUser(user);
-                        toAdd.add(userGroup);
+                        String key = Profile.Editor.toString() + group.getId();
+                        if (!listOfAddedProfiles.contains(key)) {
+                            toAdd.add(userGroup);
+                            listOfAddedProfiles.add(key);
+                        }
 					}
 
                     final UserGroup userGroup = new UserGroup()
                             .setGroup(group)
                             .setProfile(Profile.findProfileIgnoreCase(profile))
                             .setUser(user);
-                    toAdd.add(userGroup);
+                    String key = profile + group.getId();
+                    if (!listOfAddedProfiles.contains(key)) {
+                        toAdd.add(userGroup);
+                        listOfAddedProfiles.add(key);
+                    }
 				}
 			}
 		}

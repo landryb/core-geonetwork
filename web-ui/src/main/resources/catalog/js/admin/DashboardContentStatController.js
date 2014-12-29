@@ -25,6 +25,7 @@
        */
       $scope.$watch('currentIndicator', function() {
         // No data
+
         if ($scope.currentIndicator === null) {
           return;
         }
@@ -48,10 +49,11 @@
                        .tooltipContent(function(key, y, e, graph) {
                 // TODO : %age should be relative to
                 // the current set of displayed values
+                var value = d3.format('.0f')(y.replace(',', ''));
                 return '<h3>' + key + '</h3>' +
-                    '<p>' + parseInt(y).toFixed() + ' ' +
+                    '<p>' + value + ' ' +
                     $translate('records') + ' (' +
-                    (y / total * 100).toFixed() + '%)</p>';
+                    (value / total * 100).toFixed() + '%)</p>';
               })
                        .showLabels(true);
 
@@ -61,31 +63,27 @@
                      .call(chart);
 
           return chart;
-
         });
-
       });
 
       function getMainStat() {
+
+        $scope.statistics.md.popularity = {
+          sortBy: 'popularity'
+        };
+        $scope.statistics.md.rating = {
+          sortBy: 'rating'
+        };
+
+        $scope.paginationInfo = {
+          pages: -1,
+          currentPage: 1,
+          hitsPerPage: 10
+        };
+
         $http.get('statistics-content@json')
         .success(function(data) {
               $scope.statistics.md.mainStatistics = data;
-            }).error(function(data) {
-              // TODO
-            });
-
-        $http.get('qi@json?fast=index&' +
-                'sortBy=popularity&from=1&to=' + $scope.hits)
-                .success(function(data) {
-              $scope.statistics.md.popularity = data.metadata;
-            }).error(function(data) {
-              // TODO
-            });
-
-        $http.get('qi@json?fast=index&' +
-                'sortBy=rating&from=1&to=' + $scope.hits)
-        .success(function(data) {
-              $scope.statistics.md.rating = data.metadata;
             }).error(function(data) {
               // TODO
             });
@@ -152,4 +150,17 @@
 
     }]);
 
+  module.filter('mdRated', function() {
+    return function(input) {
+      var ret = [];
+      if (angular.isArray(input)) {
+        for (var i = 0; i < input.length; ++i) {
+          if (input[i].rating > 0) {
+            ret.push(input[i]);
+          }
+        }
+      }
+      return ret;
+    }
+  });
 })();

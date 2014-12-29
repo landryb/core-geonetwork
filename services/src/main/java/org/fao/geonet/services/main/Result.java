@@ -27,11 +27,14 @@ import jeeves.interfaces.Service;
 import jeeves.server.ServiceConfig;
 import jeeves.server.UserSession;
 import jeeves.server.context.ServiceContext;
+import org.apache.commons.lang.StringUtils;
 import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.kernel.SelectionManager;
 import org.fao.geonet.kernel.search.LuceneSearcher;
 import org.fao.geonet.kernel.search.MetaSearcher;
 import org.jdom.Element;
+
+import java.nio.file.Path;
 
 //=============================================================================
 
@@ -48,7 +51,7 @@ public class Result implements Service
 	//---
 	//--------------------------------------------------------------------------
 
-	public void init(String appPath, ServiceConfig config) throws Exception
+	public void init(Path appPath, ServiceConfig config) throws Exception
 	{
 		_config = config;
 	}
@@ -65,6 +68,12 @@ public class Result implements Service
 		UserSession session = context.getUserSession();
 
 		MetaSearcher searcher = (MetaSearcher) session.getProperty(Geonet.Session.SEARCH_RESULT);
+
+        String fast = _config.getValue("fast","");
+
+        if (StringUtils.isNotEmpty(fast)) {
+            params.addContent(new Element("fast").setText(fast));
+        }
 
 		String range = _config.getValue("range");
 

@@ -23,17 +23,33 @@
 
 package org.fao.geonet.kernel.harvest.harvester;
 
-import jeeves.server.UserSession;
-import jeeves.server.context.BasicContext;
-import jeeves.server.context.ServiceContext;
+import static org.quartz.JobKey.jobKey;
 
+import java.io.File;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import jeeves.server.UserSession;
+import jeeves.server.context.ServiceContext;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.DailyRollingFileAppender;
 import org.apache.log4j.PatternLayout;
 import org.fao.geonet.Logger;
 import org.fao.geonet.constants.Geonet;
 import org.fao.geonet.csw.common.exceptions.InvalidParameterValueEx;
-import org.fao.geonet.domain.*;
+import org.fao.geonet.domain.Group;
+import org.fao.geonet.domain.HarvestHistory;
+import org.fao.geonet.domain.ISODate;
+import org.fao.geonet.domain.Metadata;
+import org.fao.geonet.domain.Profile;
+import org.fao.geonet.domain.User;
 import org.fao.geonet.exceptions.BadInputEx;
 import org.fao.geonet.exceptions.BadParameterEx;
 import org.fao.geonet.exceptions.JeevesException;
@@ -44,7 +60,11 @@ import org.fao.geonet.kernel.MetadataIndexerProcessor;
 import org.fao.geonet.kernel.harvest.Common.OperResult;
 import org.fao.geonet.kernel.harvest.Common.Status;
 import org.fao.geonet.kernel.setting.HarvesterSettingsManager;
-import org.fao.geonet.repository.*;
+import org.fao.geonet.repository.GroupRepository;
+import org.fao.geonet.repository.HarvestHistoryRepository;
+import org.fao.geonet.repository.MetadataRepository;
+import org.fao.geonet.repository.SourceRepository;
+import org.fao.geonet.repository.UserRepository;
 import org.fao.geonet.repository.specification.MetadataSpecs;
 import org.fao.geonet.resources.Resources;
 import org.fao.geonet.services.harvesting.notifier.SendNotification;
@@ -60,18 +80,9 @@ import org.quartz.Trigger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specifications;
 
-import java.io.File;
-import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static org.quartz.JobKey.jobKey;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Represents a harvester job. Used to launch harvester workers.
@@ -102,7 +113,7 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
         }
 
         try {
-            AbstractHarvester ah = context.getApplicationContext().getBean(type, AbstractHarvester.class);
+            AbstractHarvester<?> ah = context.getApplicationContext().getBean(type, AbstractHarvester.class);
             ah.setContext(context);
 
             return ah;
@@ -453,7 +464,7 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
         
         UserRepository repository = this.context.getBean(UserRepository.class);
         User user = null;
-        if (ownerId != null) {
+        if (StringUtils.isNotEmpty(ownerId)) {
             user = repository.findOne(ownerId);
         }
         
@@ -491,7 +502,7 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
             this.log.info("Starting harvesting of " + this.getParams().name);
             error = null;
             errors.clear();
-            final Logger logger = Log.createLogger(Geonet.HARVESTER);
+            final Logger logger = this.log;
             final String nodeName = getParams().name + " (" + getClass().getSimpleName() + ")";
             final String lastRun = new DateTime().withZone(DateTimeZone.forID("UTC")).toString();
             try {
@@ -562,7 +573,8 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
                     .setHarvesterUuid(getParams().uuid)
                     .setElapsedTime((int) elapsedTime)
                     .setHarvestDate(new ISODate(lastRun))
-                    .setParams(getParams().node);
+                    .setParams(getParams().node)
+                    .setInfo(result);
             historyRepository.save(history);
 
 
@@ -661,10 +673,12 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
     }
 
     private void removeIcon(String uuid) {
-        File icon = new File(Resources.locateLogosDir(context), uuid+ ".gif");
+        Path icon = Resources.locateLogosDir(context).resolve(uuid+ ".gif");
 
-        if (!icon.delete() && icon.exists()) {
-            Log.warning(Geonet.HARVESTER + "." + getType(), "Unable to delete icon: " + icon);
+        try {
+            Files.deleteIfExists(icon);
+        } catch (IOException e) {
+            Log.warning(Geonet.HARVESTER + "." + getType(), "Unable to delete icon: " + icon, e);
         }
     }
 
@@ -881,6 +895,9 @@ public abstract class AbstractHarvester<T extends HarvestResult> {
             add(res, "thumbnailsFailed", result.thumbnailsFailed);
         }
         return res;
+    }
+    public void emptyResult() {
+        result = null;
     }
 
     /**

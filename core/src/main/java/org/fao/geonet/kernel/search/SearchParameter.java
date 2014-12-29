@@ -93,5 +93,16 @@ public class SearchParameter {
 	public static final String SPATIALREPRESENTATIONTYPE = "spatialRepresentationType";
     public static final String VALID = "valid";
     public static final String HASFEATURECAT="hasfeaturecat";
+    public static final String ROOT = "_root";
+    public static final String ISTEMPLATE = "_isTemplate";
+    public static final String RESULTTYPE = "resultType";
+
+	public static final String OP_VIEW 	   = "_operation0";
+	public static final String OP_DOWNLOAD = "_operation1";
+	public static final String OP_EDITING  = "_operation2";
+	public static final String OP_NOTIFY   = "_operation3";
+	public static final String OP_DYNAMIC  = "_operation5";
+	public static final String OP_FEATURED = "_operation6";
+
 
 }

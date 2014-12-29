@@ -37,13 +37,24 @@
     <xsl:message>#<xsl:value-of select="$xpath"/></xsl:message>
     <xsl:message>#<xsl:value-of select="$parent"/></xsl:message>-->
     
+    <xsl:variable name="escapedName">
+      <xsl:choose>
+        <xsl:when test="matches($name, '.*CHOICE_ELEMENT.*')">
+          <xsl:value-of select="substring-before($name, 'CHOICE_ELEMENT')"/>
+        </xsl:when>
+        <xsl:when test="matches($name, '.*GROUP_ELEMENT.*')">
+          <xsl:value-of select="substring-before($name, 'GROUP_ELEMENT')"/>
+        </xsl:when>
+        <xsl:otherwise><xsl:value-of select="$name"/></xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
     
     <!-- Name with context in current schema -->
     <xsl:variable name="schemaLabelWithContext"
-      select="$labels/element[@name=$name and (@context=$xpath or @context=$parent or @context=$parentIsoType)]"/>
+      select="$labels/element[@name=$escapedName and (@context=$xpath or @context=$parent or @context=$parentIsoType)]"/>
     
     <!-- Name in current schema -->
-    <xsl:variable name="schemaLabel" select="$labels/element[@name=$name and not(@context)]"/>
+    <xsl:variable name="schemaLabel" select="$labels/element[@name=$escapedName and not(@context)]"/>
 
     <xsl:choose>
       <xsl:when test="$schemaLabelWithContext">
@@ -61,7 +72,7 @@
           <xsl:otherwise>
             <element>
               <label>
-                <xsl:value-of select="$name"/>
+                <xsl:value-of select="$escapedName"/>
               </label>
             </element>
             <xsl:message>gn-fn-metadata:getLabel | missing translation in schema <xsl:value-of
@@ -120,7 +131,7 @@
             <xsl:variable name="match">
               <xsl:call-template name="evaluate-iso19139">
                 <xsl:with-param name="base" select="$metadata/descendant-or-self::node()[gn:element/@ref = $node/gn:element/@ref]"/>
-                <xsl:with-param name="in" select="@displayIf"/>
+                <xsl:with-param name="in" select="concat('/', @displayIf)"/>
               </xsl:call-template>
             </xsl:variable>
             <xsl:if test="$match != ''">
@@ -138,6 +149,7 @@
       <xsl:when test="$codelists">
         <!-- Return the default -->
         <codelist>
+          <xsl:copy-of select="$codelists[not(@displayIf)]/@*"/>
           <xsl:copy-of select="$codelists[not(@displayIf)]/*[not(@hideInEditMode)]"/>
         </codelist>
       </xsl:when>
@@ -201,10 +213,18 @@
                 <xsl:with-param name="in" select="concat('/', @displayIf)"/>
               </saxon:call-template>
             </xsl:variable>
-            
-            <xsl:if test="$match/*">
-              <xsl:copy-of select="option"/>
-            </xsl:if>
+
+            <xsl:choose>
+              <xsl:when test="$match/*">
+                <xsl:copy-of select="option"/>
+              </xsl:when>
+              <xsl:when test="$helper[not(@displayIf)]">
+                <!-- The defautl helper is the one with no condition. -->
+                <xsl:copy-of select="$helper[not(@displayIf)]/*"/>
+              </xsl:when>
+              <xsl:otherwise>
+              </xsl:otherwise>
+            </xsl:choose>
           </xsl:for-each>
         </helper>
       </xsl:when>
@@ -280,20 +300,44 @@
   <!-- Return the directive to use for add control if a custom one 
   is defined. Eg. Adding from a thesaurus propose a list of available
   thesaurus. -->
-  <xsl:function name="gn-fn-metadata:getFieldAddDirective" as="xs:string">
+  <xsl:function name="gn-fn-metadata:getFieldAddDirective" as="node()">
     <xsl:param name="configuration" as="node()"/>
     <xsl:param name="name" as="xs:string"/>
     
-    <xsl:variable name="type" select="normalize-space($configuration/editor/fields/for[@name = $name]/@addDirective)"/>
-    
-    <xsl:value-of
-      select="if ($type != '')
-      then $type 
-      else ''"
-    />
+    <xsl:variable name="type" select="$configuration/editor/fields/for[@name = $name and @addDirective]"/>
+    <xsl:choose>
+      <xsl:when test="$type">
+        <xsl:copy-of select="$type" copy-namespaces="no"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <null/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:function>
 
+  <xsl:function name="gn-fn-metadata:getFieldAddDirectiveAttributes"
+                as="attribute()*">
+    <xsl:param name="configuration" as="node()"/>
+    <xsl:param name="name" as="xs:string"/>
 
+    <xsl:copy-of select="$configuration/editor/fields/
+          for[@name = $name and @addDirective]/
+          directiveAttributes/@*"/>
+  </xsl:function>
+
+  <!-- Return if a flat mode exception has been defined in the current view for a field. -->
+  <xsl:function name="gn-fn-metadata:isFieldFlatModeException" as="xs:boolean">
+    <xsl:param name="configuration" as="node()"/>
+    <xsl:param name="name" as="xs:string"/>
+
+    <xsl:variable name="exception" select="count($configuration/flatModeExceptions/for[@name = $name])"/>
+   
+    <xsl:value-of
+        select="if ($exception > 0)
+      then true()
+      else false()"
+        />
+  </xsl:function>
 
   <xsl:function name="gn-fn-metadata:getXPath" as="xs:string">
     <xsl:param name="node" as="node()"/>

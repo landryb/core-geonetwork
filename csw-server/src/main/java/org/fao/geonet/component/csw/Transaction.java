@@ -36,7 +36,6 @@ import org.fao.geonet.csw.common.OutputSchema;
 import org.fao.geonet.csw.common.ResultType;
 import org.fao.geonet.csw.common.exceptions.CatalogException;
 import org.fao.geonet.csw.common.exceptions.NoApplicableCodeEx;
-import org.fao.geonet.csw.common.util.Xml;
 import org.fao.geonet.domain.Pair;
 import org.fao.geonet.domain.Profile;
 import org.fao.geonet.domain.ReservedGroup;
@@ -49,10 +48,6 @@ import org.fao.geonet.kernel.csw.services.getrecords.SearchController;
 import org.fao.geonet.kernel.schema.MetadataSchema;
 import org.fao.geonet.kernel.setting.SettingManager;
 import org.fao.geonet.utils.Log;
-import org.jaxen.SimpleNamespaceContext;
-import org.jaxen.XPath;
-import org.jaxen.jdom.JDOMXPath;
-import org.jdom.Attribute;
 import org.jdom.Element;
 import org.jdom.Namespace;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -248,20 +243,20 @@ public class Transaction extends AbstractOperation implements CatalogService {
         String id = dataMan.insertMetadata(context, schema, xml, uuid, userId, group, source,
                 isTemplate, docType, category, createDate, changeDate, ufo, indexImmediate);
 
+        // Privileges for the first group of the user that inserts the metadata
+        // (same permissions as when inserting xml file from UI)
+        if (group != null) {
+            for (ReservedOperation op : ReservedOperation.values()) {
+                dataMan.unsetOperation(context, id, group, op);
+            }
+        }
+
         // Set metadata as public if setting enabled
         SettingManager sm = gc.getBean(SettingManager.class);
         boolean metadataPublic = sm.getValueAsBool("system/csw/metadataPublic", false);
 
         if (metadataPublic) {
             dataMan.setOperation(context, id, "" + ReservedGroup.all.getId(), ReservedOperation.view);
-        }
-
-
-        // Privileges for the user group that inserts the metadata (same permissions as when inserting xml file from UI)
-        if (group != null) {
-            for (ReservedOperation op : ReservedOperation.values()) {
-                dataMan.unsetOperation(context, id, group, op);
-            }
         }
 
         dataMan.indexMetadata(id, false);

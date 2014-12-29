@@ -28,35 +28,44 @@
         tabs: []
       };
       $scope.harvesterTypes = {};
-      $scope.harvesters = {};
+      $scope.harvesters = null;
       $scope.harvesterSelected = null;
       $scope.harvesterUpdated = false;
       $scope.harvesterNew = false;
       $scope.harvesterHistory = {};
+      $scope.isLoadingHarvester = false;
+      $scope.isLoadingHarvesterHistory = false;
 
 
       var unbindStatusListener = null;
 
 
       function loadHarvesters() {
+        $scope.isLoadingHarvester = true;
+        $scope.harvesters = null;
         return $http.get('admin.harvester.list@json').success(function(data) {
           if (data != 'null') {
             $scope.harvesters = data;
             gnUtilityService.parseBoolean($scope.harvesters);
           }
+          $scope.isLoadingHarvester = false;
         }).error(function(data) {
           // TODO
+          $scope.isLoadingHarvester = false;
         });
       }
 
 
       function loadHistory() {
+        $scope.isLoadingHarvesterHistory = true;
         $scope.harvesterHistory = undefined;
         $http.get('admin.harvester.history@json?uuid=' +
             $scope.harvesterSelected.site.uuid).success(function(data) {
           $scope.harvesterHistory = data.harvesthistory;
+          $scope.isLoadingHarvesterHistory = false;
         }).error(function(data) {
           // TODO
+          $scope.isLoadingHarvesterHistory = false;
         });
       }
 
@@ -67,7 +76,7 @@
               angular.forEach(data[0], function(value) {
                 $scope.harvesterTypes[value] = {
                   label: value,
-                  text: $translate(value)
+                  text: $translate('harvester-' + value)
                 };
                 $.getScript('../../catalog/templates/admin/harvest/type/' +
                     value + '.js')
@@ -145,12 +154,14 @@
 
 
       $scope.saveHarvester = function() {
+        // Activate or disable it
+        $scope.setHarvesterSchedule();
+
         var body = window['gnHarvester' + $scope.harvesterSelected['@type']]
           .buildResponse($scope.harvesterSelected, $scope);
 
         $http.post('admin.harvester.' +
-            ($scope.harvesterNew ? 'add' : 'update') +
-            '@json', body, {
+            ($scope.harvesterNew ? 'add' : 'update'), body, {
               headers: {'Content-type': 'application/xml'}
             }).success(function(data) {
           loadHarvesters();
@@ -199,7 +210,7 @@
         loadHarvesters();
       };
       $scope.deleteHarvester = function() {
-        $http.get('admin.harvester.remove@json?id=' +
+        $http.get('admin.harvester.remove?_content_type=json&id=' +
             $scope.harvesterSelected['@id'])
           .success(function(data) {
               $scope.harvesterSelected = {};
@@ -212,7 +223,7 @@
       };
 
       $scope.deleteHarvesterRecord = function() {
-        $http.get('admin.harvester.clear@json?id=' +
+        $http.get('admin.harvester.clear?_content_type=json&id=' +
             $scope.harvesterSelected['@id'])
           .success(function(data) {
               $scope.harvesterSelected = {};
@@ -224,11 +235,7 @@
             });
       };
       $scope.deleteHarvesterHistory = function() {
-        var ids = [];
-        angular.forEach($scope.harvesterHistory, function(h) {
-          ids.push(h.id);
-        });
-        $http.get('admin.harvester.history.delete@json?id=' + ids.join('&id='))
+        $http.get('admin.harvester.history.delete?uuid=' + $scope.harvesterSelected.site.uuid)
           .success(function(data) {
               loadHarvesters().then(function() {
                 $scope.selectHarvester($scope.harvesterSelected);
@@ -236,7 +243,7 @@
             });
       };
       $scope.runHarvester = function() {
-        $http.get('admin.harvester.run@json?id=' +
+        $http.get('admin.harvester.run@json?_content_type=json&id=' +
             $scope.harvesterSelected['@id'])
           .success(function(data) {
               loadHarvesters();
@@ -264,10 +271,11 @@
       };
 
       // Register status listener
-      unbindStatusListener = $scope.$watch('harvesterSelected.options.status',
-          function() {
-            $scope.setHarvesterSchedule();
-          });
+      //unbindStatusListener =
+      // $scope.$watch('harvesterSelected.options.status',
+      //    function() {
+      //      $scope.setHarvesterSchedule();
+      //    });
 
       loadHarvesters();
       loadHarvesterTypes();
@@ -513,6 +521,13 @@
               loadHarvesterTemplates();
             }
           });
+      $scope.getHarvesterTypes = function() {
+        var array = [];
+        angular.forEach($scope.harvesterTypes, function(h) {
+          array.push(h);
+        });
+        return array;
+      };
     }]);
 
 })();

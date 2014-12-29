@@ -18,7 +18,7 @@ var gnHarvestergeoPREST = {
               "baseUrl": "http://"
             },
             "content":   {
-              "validate": "false",
+              "validate": "NOVALIDATION",
               "importxslt": "none"
             },
             "options":   {
@@ -49,7 +49,7 @@ var gnHarvestergeoPREST = {
                 + '  <ownerGroup><id>' + h.ownerGroup[0] + '</id></ownerGroup>' 
                 + '  <site>' 
                 + '    <name>' + h.site.name + '</name>' 
-                + '    <baseUrl>' + h.site.baseUrl + '</baseUrl>'
+                + '    <baseUrl>' + h.site.baseUrl.replace(/&/g, '&amp;') + '</baseUrl>'
                 + '    <icon>' + h.site.icon + '</icon>' 
                 + '    <account>'
                 + '      <use>' + h.site.account.use + '</use>'

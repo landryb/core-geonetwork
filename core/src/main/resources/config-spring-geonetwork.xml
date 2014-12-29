@@ -2,16 +2,17 @@
 <beans
 	xmlns="http://www.springframework.org/schema/beans"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:aop="http://www.springframework.org/schema/aop"
-    xmlns:tx="http://www.springframework.org/schema/tx"
 	xsi:schemaLocation="
 		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd
-        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.0.xsd
     " >
 
-    <aop:aspectj-autoproxy proxy-target-class="true"/>
-    <tx:annotation-driven proxy-target-class="true"/>
+    <bean id="ProfileManager" class="jeeves.component.ProfileManager" lazy-init="true"/>
+    <bean id="MonitorManager" class="jeeves.monitor.MonitorManager" lazy-init="true"/>
+    <bean id="JeevesEngine" class="jeeves.server.JeevesEngine" lazy-init="true"/>
+    <bean id="ServiceManager" class="jeeves.server.dispatchers.ServiceManager" lazy-init="true"/>
+    <bean id="XmlCacheManager" class="jeeves.server.dispatchers.guiservices.XmlCacheManager" lazy-init="true"/>
+    <bean id="ServiceInfo" class="jeeves.server.dispatchers.ServiceInfo" scope="prototype"/>
+
 
     <bean id="AccessManager" class="org.fao.geonet.kernel.AccessManager" lazy-init="true" />
     <bean id="DataManager" class="org.fao.geonet.kernel.DataManager" lazy-init="true" />
@@ -25,11 +26,40 @@
     <bean id="SettingManager" class="org.fao.geonet.kernel.setting.SettingManager" lazy-init="true"/>
     <bean id="MetadataNotifierManager" class="org.fao.geonet.notifier.MetadataNotifierManager" lazy-init="true"/>
     <bean id="IsoLanguagesMapper" class="org.fao.geonet.languages.IsoLanguagesMapper" lazy-init="true"/>
+    <bean id="selectionManager" class="org.fao.geonet.kernel.SelectionManager" lazy-init="true"/>
 
 
+    <bean id="indexingList" class="org.fao.geonet.kernel.search.index.IndexingList"/>
 
+    <bean name="indexingTaskJob" class="org.springframework.scheduling.quartz.JobDetailFactoryBean">
+      <property name="jobClass" value="org.fao.geonet.kernel.search.index.IndexingTask"/>
+    </bean>
 
-    <bean id="IncreasePopularityTask" class="org.fao.geonet.kernel.IncreasePopularityTask" lazy-init="true" scope="prototype"/>
+    <bean id="indexingTaskTrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+      <property name="jobDetail" ref="indexingTaskJob" />
+      <property name="cronExpression" value="0/30 * * * * ?" />
+      <property name="startDelay" value="60000"/>
+    </bean>
+
+    <bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+      <property name="jobFactory">
+        <bean class="org.fao.geonet.util.spring.AutowiringSpringBeanJobFactory"/>
+      </property>
+      <property name="triggers">
+        <list>
+          <ref bean="indexingTaskTrigger" />
+        </list>
+      </property>
+      <property name="quartzProperties">
+        <props>
+          <prop key="org.quartz.scheduler.instanceName">default.geonetwork.indexingtask</prop>
+          <prop key="org.quartz.scheduler.instanceId">AUTO</prop>
+          <prop key="org.quartz.jobStore.class">org.quartz.simpl.RAMJobStore</prop>
+          <prop key="org.quartz.threadPool.threadCount">1</prop>
+        </props>
+      </property>
+    </bean>
+
     <bean id="SearchLoggerTask" class="org.fao.geonet.kernel.search.SearchLoggerTask" lazy-init="true" scope="prototype"/>
     <bean id="MetadataNotifierTask" class="org.fao.geonet.notifier.MetadataNotifierTask" lazy-init="true" scope="prototype"/>
     <bean id="MetadataNotifierClient" class="org.fao.geonet.notifier.MetadataNotifierClient" lazy-init="true" scope="prototype"/>
