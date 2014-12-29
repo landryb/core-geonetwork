@@ -719,7 +719,7 @@ public class GeoServerRest {
                 Log.debug(LOGGER_NAME, "postData:" + postData);
             }
             if (method.equals(METHOD_PUT) && file != null) {
-                Log.debug(LOGGER_NAME, "putFile:" + file.getPath());
+                Log.debug(LOGGER_NAME, "putFile:" + file.toString());
             }
         }
 
