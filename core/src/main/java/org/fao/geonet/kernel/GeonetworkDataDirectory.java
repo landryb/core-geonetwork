@@ -406,7 +406,7 @@ public class GeonetworkDataDirectory {
         String envKey = webappName + key;
         if (dir != null) {
             if (Log.isDebugEnabled(Geonet.DATA_DIRECTORY)) {
-                Log.debug(Geonet.DATA_DIRECTORY, " path for " + envKey + " was already set to " + dir.toString() +
+                Log.debug(Geonet.DATA_DIRECTORY, " path for " + envKey + " was already set to " + dir.toString()
                                                  + " via bean properties, not looking up");
             }
         } else {
