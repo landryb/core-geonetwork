@@ -1,34 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
 <log4j:configuration debug="false">
-
-
-
-    <!-- Appender Configurations -->
-    <appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender">
-        <param name="Threshold" value="ALL" />
-        <layout class="org.apache.log4j.PatternLayout">
-            <param name="ConversionPattern" value="%d{ISO8601} %-5p [%c] - %m%n" />
-        </layout>
-    </appender>
-    <appender name="allConsoleAppender" class="org.apache.log4j.ConsoleAppender">
-        <param name="Threshold" value="ALL" />
-        <layout class="org.apache.log4j.PatternLayout">
-            <param name="ConversionPattern" value="%d{ISO8601} %-5p [%c] - %m%n" />
-        </layout>
-    </appender>
     <appender name="fileAppender" class="org.apache.log4j.RollingFileAppender">
         <param name="Threshold" value="ALL" />
-        <param name="File" value="logs/geonetwork.log" />
+        <param name="File" value="/tmp/geonetwork.log" />
         <layout class="org.apache.log4j.PatternLayout">
             <param name="ConversionPattern" value="%d{ISO8601} %-5p [%c] - %m%n" />
         </layout>
     </appender>
-
     <!-- Geonetwork module (and submodule) logging -->
     <logger name="geonetwork" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="geonetwork.search">
@@ -78,7 +60,6 @@
     </logger>
     <logger name="geonetwork.harvester" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="geonetwork.lucene">
@@ -117,11 +98,9 @@
     <logger name="geonetwork.wro4j">
         <level value="WARN" />
     </logger>
-
     <!--  Jeeves module and submodule logger configuration -->
     <logger name="jeeves" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="jeeves.dbms">
@@ -151,13 +130,9 @@
     <logger name="jeeves.xmlresolver">
         <level value="WARN" />
     </logger>
-
-
-
     <!--  Spring logging configuration -->
     <logger name="org.springframework" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.springframework.beans" additivity="false">
@@ -177,7 +152,6 @@
     <!--  JZKIT logging configuration -->
     <logger name="com.k_int" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.jzkit">
@@ -191,34 +165,22 @@
     </logger>
     <logger name="ro.isdc.wro.http" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="allConsoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.hibernate.SQL" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.hibernate.type" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.hibernate.tool.hbm2ddl" additivity="false">
         <level value="WARN" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
     <logger name="org.xhtmlrenderer" additivity="false">
         <level value="TRACE" />
-        <appender-ref ref="consoleAppender" />
         <appender-ref ref="fileAppender" />
     </logger>
-
-
-    <!-- Turn off logging except when explicitly declared below -->
-    <root>
-        <level value="OFF"></level>
-        <appender-ref ref="consoleAppender"/>
-    </root>
 </log4j:configuration>
